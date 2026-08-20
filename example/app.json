@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Chatty RN Example",
+    "slug": "chatty-react-native-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.personaliai.chatty.example"
+    },
+    "android": {
+      "package": "com.personaliai.chatty.example"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
