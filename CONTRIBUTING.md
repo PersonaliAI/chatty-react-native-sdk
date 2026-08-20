@@ -7,7 +7,7 @@ welcome.
 ## Development setup
 
 ```bash
-git clone https://github.com/Damayantha/chatty-react-native-sdk.git
+git clone https://github.com/PersonaliAI/chatty-react-native-sdk.git
 cd chatty-react-native-sdk
 npm install
 npm run typecheck

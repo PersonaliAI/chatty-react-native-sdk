@@ -7,7 +7,7 @@ directly to the same `/api/widget/*` backend as the Chatty web widget and render
 bubble, and composer with real `View`/`Text`/`FlatList` components — no `WebView`, no JS bridge
 overhead.
 
-[![CI](https://github.com/Damayantha/chatty-react-native-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/Damayantha/chatty-react-native-sdk/actions/workflows/ci.yml)
+[![CI](https://github.com/PersonaliAI/chatty-react-native-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/PersonaliAI/chatty-react-native-sdk/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@personaliai/react-native.svg)](https://www.npmjs.com/package/@personaliai/react-native)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Expo compatible](https://img.shields.io/badge/Expo-compatible-000020.svg)](#requirements)
