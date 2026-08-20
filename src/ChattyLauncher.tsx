@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, View, Platform } from "react-native";
 import { ChattyChatView, ChattyChatViewProps } from "./ChattyChatView";
 import { ChattyClient, ChattyTheme } from "./api";
-import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle } from "./designTokens";
+import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLauncherRadii } from "./designTokens";
 
 export interface ChattyLauncherProps extends ChattyChatViewProps {
   /** "left" | "right", defaults to "right". */
@@ -23,6 +23,7 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [designId, setDesignId] = useState(FALLBACK_DESIGN);
+  const [rawWidgetStyle, setRawWidgetStyle] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +32,7 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
       .then((t: ChattyTheme) => {
         if (cancelled) return;
         setDesignId(chattyNormalizeWidgetStyle(t.widget_style));
+        setRawWidgetStyle(t.widget_style);
       })
       .catch(() => {});
     return () => {
@@ -40,12 +42,14 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
   }, [props.botId]);
 
   const tokens = CHATTY_DESIGN_TOKENS[designId] ?? CHATTY_DESIGN_TOKENS[FALLBACK_DESIGN];
+  const launcherRadii = chattyLauncherRadii(rawWidgetStyle, 60, position);
 
   return (
     <>
       <TouchableOpacity
         style={[
           styles.button,
+          launcherRadii,
           {
             [position]: 20,
             backgroundColor: tokens.launcherBg,

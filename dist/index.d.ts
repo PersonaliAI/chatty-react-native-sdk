@@ -6,6 +6,6 @@ export { ChattyChatView } from "./ChattyChatView";
 export type { ChattyChatViewProps } from "./ChattyChatView";
 export { ChattyLauncher } from "./ChattyLauncher";
 export type { ChattyLauncherProps } from "./ChattyLauncher";
-export { getOrCreateSessionId } from "./session";
-export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle } from "./designTokens";
+export { getOrCreateSessionId, newSession } from "./session";
+export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLogoBgColor, chattyLauncherRadii, chattyBubbleRadii } from "./designTokens";
 export type { ChattyDesignTokens } from "./designTokens";

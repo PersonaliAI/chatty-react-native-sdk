@@ -134,21 +134,37 @@ The button color follows the active design's accent automatically — same as we
   host={string}             // optional, see Notes
   onReady={() => void}
   onMessage={(message) => void}
-  onAttachPress={() => void}  // optional, called instead of the built-in image picker
+  onCameraPress={() => void}          // optional, "Camera" tapped in the attach menu
+  onPhotoLibraryPress={() => void}    // optional, "Photo Library" tapped in the attach menu
+  onAttachPress={() => void}          // optional fallback if the two above aren't given
+  onMicPress={() => void}             // optional — mic button only renders when this is set
+  onVoiceCallPress={() => void}       // optional, header voice-call button (only shown when
+                                       // the bot's dashboard has voice enabled)
+  onNotificationBellPress={() => void}  // optional, header notification-bell button
 />
 ```
+
+This SDK renders the composer's emoji picker and attach/mic UI (with layout animation), but it
+deliberately doesn't bundle a camera, photo-library, or audio-recording dependency itself —
+that would mean forcing every consumer (bare RN and Expo alike) to install and link a native
+module they might not want. Instead, `onCameraPress` / `onPhotoLibraryPress` / `onMicPress` fire
+when their button is tapped so you can wire up whichever picker/recorder your app already uses
+(`expo-image-picker` + `expo-av`, `react-native-image-picker`, etc.) and then call `sendImage` /
+`ChattyClient.transcribe()` yourself. The header's clear-chat button (↺) is fully built in and
+needs no wiring — it resets local messages and starts a fresh session.
 
 ### `useChattyChat` (headless)
 
 ```tsx
 const {
   theme, ready, messages, sending, aiPaused, error,
-  sendText, sendImage,
+  sendText, sendImage, clearChat,
 } = useChattyChat({ botId: string, baseUrl?: string, host?: string });
 ```
 
 Everything `ChattyChatView` uses internally — conversation state, polling, and the
-send/sendImage actions — with no UI attached, for apps that want to render their own layout.
+send/sendImage/clearChat actions — with no UI attached, for apps that want to render their own
+layout.
 
 ### Notes
 

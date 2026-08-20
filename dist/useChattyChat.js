@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ChattyClient, } from "./api";
-import { getOrCreateSessionId } from "./session";
+import { getOrCreateSessionId, newSession } from "./session";
 const MSGS_KEY = (botId, host) => `chatty_msgs_${botId}_${host}`;
 /**
  * Drives a full Chatty conversation: loads bot theme/config, manages the
@@ -223,5 +223,26 @@ export function useChattyChat(options) {
             setSending(false);
         }
     }, [sessionId, visitorTimezone, persistMessages]);
-    return { theme, ready, messages, sending, aiPaused, error, sendText, sendImage };
+    const clearChat = useCallback(async () => {
+        const sid = await newSession(botId, hostKey);
+        setSessionId(sid);
+        lastPollAt.current = new Date().toISOString();
+        setAiPaused(false);
+        setError(null);
+        if (theme?.welcome_message) {
+            const welcomeMsg = {
+                id: "welcome",
+                role: "assistant",
+                text: theme.welcome_message,
+                createdAt: new Date().toISOString(),
+            };
+            setMessages([welcomeMsg]);
+            await persistMessages([welcomeMsg]);
+        }
+        else {
+            setMessages([]);
+            await persistMessages([]);
+        }
+    }, [botId, hostKey, theme, persistMessages]);
+    return { theme, ready, messages, sending, aiPaused, error, sendText, sendImage, clearChat };
 }

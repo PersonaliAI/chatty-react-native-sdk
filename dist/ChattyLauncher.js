@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, View, Platform } from "react-native";
 import { ChattyChatView } from "./ChattyChatView";
 import { ChattyClient } from "./api";
-import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle } from "./designTokens";
+import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLauncherRadii } from "./designTokens";
 const FALLBACK_DESIGN = "minimal";
 /**
  * Floating launcher button + full-screen modal chat panel — the native-SDK
@@ -16,6 +16,7 @@ export function ChattyLauncher(props) {
     const [open, setOpen] = useState(false);
     const [unread, setUnread] = useState(0);
     const [designId, setDesignId] = useState(FALLBACK_DESIGN);
+    const [rawWidgetStyle, setRawWidgetStyle] = useState(undefined);
     useEffect(() => {
         let cancelled = false;
         new ChattyClient({ botId: props.botId, baseUrl: props.baseUrl, host: props.host })
@@ -24,6 +25,7 @@ export function ChattyLauncher(props) {
             if (cancelled)
                 return;
             setDesignId(chattyNormalizeWidgetStyle(t.widget_style));
+            setRawWidgetStyle(t.widget_style);
         })
             .catch(() => { });
         return () => {
@@ -32,9 +34,11 @@ export function ChattyLauncher(props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [props.botId]);
     const tokens = CHATTY_DESIGN_TOKENS[designId] ?? CHATTY_DESIGN_TOKENS[FALLBACK_DESIGN];
+    const launcherRadii = chattyLauncherRadii(rawWidgetStyle, 60, position);
     return (<>
       <TouchableOpacity style={[
             styles.button,
+            launcherRadii,
             {
                 [position]: 20,
                 backgroundColor: tokens.launcherBg,

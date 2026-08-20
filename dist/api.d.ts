@@ -11,6 +11,7 @@ export interface ChattyTheme {
     teaser_message?: string;
     avatar_icon?: string;
     avatar_url?: string;
+    voice_enabled?: boolean;
 }
 export interface ChattyChatResponse {
     reply: string;
@@ -61,6 +62,17 @@ export declare class ChattyClient {
         name: string;
         type: string;
     }, text?: string, visitorTimezone?: string): Promise<ChattyMediaResponse>;
+    /**
+     * Server-side speech-to-text for a recorded voice note (mic button). Accepts
+     * wav/mp3/ogg/aac/aiff/flac (not webm) up to 10MB. Returns the transcribed text, or ""
+     * if speech wasn't detected. This SDK doesn't record audio itself — bring your own
+     * recorder (e.g. expo-av) and pass the resulting file here.
+     */
+    transcribe(file: {
+        uri: string;
+        name: string;
+        type: string;
+    }): Promise<string>;
     /** Poll for new messages (e.g. from a human agent) since the given ISO timestamp. */
     poll(sessionId: string, after: string): Promise<ChattyPollResponse>;
 }

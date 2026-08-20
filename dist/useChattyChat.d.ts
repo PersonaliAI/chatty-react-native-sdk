@@ -28,6 +28,9 @@ export interface UseChattyChatResult {
         name: string;
         type: string;
     }, caption?: string) => Promise<void>;
+    /** Clears the local conversation and starts a fresh session — the native equivalent
+     * of web's header "clear chat" button. */
+    clearChat: () => Promise<void>;
 }
 /**
  * Drives a full Chatty conversation: loads bot theme/config, manages the

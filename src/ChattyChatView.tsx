@@ -12,17 +12,50 @@ import {
   ActivityIndicator,
   Linking,
   Animated,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
 import { ChattyMessage, useChattyChat, UseChattyChatOptions } from "./useChattyChat";
 import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyBubbleRadii, ChattyDesignTokens } from "./designTokens";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const CHATTY_EMOJIS = [
+  "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🙂", "🙃", "😉", "😊", "😇",
+  "🥰", "😍", "🤩", "😘", "😋", "😛", "🤪", "😜", "🤔", "🤨", "😐", "😑",
+  "😶", "🙄", "😏", "😒", "😬", "🙁", "😢", "😭", "😤", "😡", "🥳", "😴",
+  "🤗", "🤝", "👍", "👎", "👏", "🙌", "🙏", "💪", "👋", "✌️", "🤞", "❤️",
+  "🔥", "✨", "🎉", "🎊", "⭐", "💯", "✅", "❌", "❓", "❗", "💬", "👀",
+];
 
 export interface ChattyChatViewProps extends UseChattyChatOptions {
   /** Called once theme/config has loaded and the chat is ready to use. */
   onReady?: () => void;
   /** Called after every new assistant/agent message arrives (mirrors `chatty:message`). */
   onMessage?: (message: ChattyMessage) => void;
-  /** Called when the attachment button is pressed. User should pick an image and call sendImage. */
+  /** Called when the attachment button is pressed and no onCameraPress/onPhotoLibraryPress
+   * are given — kept for backward compatibility with earlier SDK versions. */
   onAttachPress?: () => void;
+  /** Called when "Camera" is tapped in the attach menu. This SDK doesn't bundle a camera
+   * dependency itself — wire this up with expo-image-picker / react-native-image-picker
+   * (or your own) and call `sendImage` with the result. */
+  onCameraPress?: () => void;
+  /** Called when "Photo Library" is tapped in the attach menu — same pattern as onCameraPress. */
+  onPhotoLibraryPress?: () => void;
+  /** Called when the mic button is tapped. This SDK doesn't bundle an audio-recording
+   * dependency itself — wire this up with expo-av (or your own recorder), then call
+   * `ChattyClient.transcribe()` with the recorded file and fill the input with the result. */
+  onMicPress?: () => void;
+  /** Called when the header's voice-call button is tapped (only shown when the bot's
+   * dashboard has voice enabled). This SDK doesn't bundle a voice-call implementation
+   * (that's a separate LiveKit integration) — wire this up if your app has one. */
+  onVoiceCallPress?: () => void;
+  /** Called when the header's notification-bell button is tapped. Native apps manage push
+   * notifications through their own infrastructure (FCM/APNs), so this SDK doesn't
+   * subscribe to anything itself — wire this up to your app's own notification opt-in. */
+  onNotificationBellPress?: () => void;
 }
 
 /** bot/logo(no logoUrl)/custom(no avatarUrl) fall back to a generic chat
@@ -46,9 +79,13 @@ function sendGlyph(style: string | null | undefined): string {
   }
 }
 
+const EASE_LAYOUT = LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity);
+
 export function ChattyChatView(props: ChattyChatViewProps) {
-  const { theme, ready, messages, sending, aiPaused, error, sendText, sendImage } = useChattyChat(props);
+  const { theme, ready, messages, sending, aiPaused, error, sendText, sendImage, clearChat } = useChattyChat(props);
   const [input, setInput] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const listRef = useRef<FlatList<ChattyMessage>>(null);
   const designId = chattyNormalizeWidgetStyle(theme?.widget_style);
   const t = CHATTY_DESIGN_TOKENS[designId];
@@ -76,12 +113,26 @@ export function ChattyChatView(props: ChattyChatViewProps) {
     const text = input.trim();
     if (!text || sending) return;
     setInput("");
+    setShowEmojiPicker(false);
+    setShowAttachMenu(false);
     void sendText(text);
   };
 
   const handleStarter = (starter: string) => {
     if (sending) return;
     void sendText(starter);
+  };
+
+  const toggleEmojiPicker = () => {
+    LayoutAnimation.configureNext(EASE_LAYOUT);
+    setShowAttachMenu(false);
+    setShowEmojiPicker((v) => !v);
+  };
+
+  const toggleAttachMenu = () => {
+    LayoutAnimation.configureNext(EASE_LAYOUT);
+    setShowEmojiPicker(false);
+    setShowAttachMenu((v) => !v);
   };
 
   if (!ready) {
@@ -106,7 +157,7 @@ export function ChattyChatView(props: ChattyChatViewProps) {
             <Text style={{ fontSize: 20 }}>{avatarGlyph(theme?.avatar_icon)}</Text>
           )}
         </View>
-        <View style={{ flexShrink: 1 }}>
+        <View style={{ flexShrink: 1, flex: 1 }}>
           <Text style={[styles.headerTitle, { color: t.headerText }]} numberOfLines={1}>
             {theme?.name || "Chatty Assistant"}
           </Text>
@@ -117,6 +168,17 @@ export function ChattyChatView(props: ChattyChatViewProps) {
             </Text>
           </View>
         </View>
+        {theme?.voice_enabled ? (
+          <TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
+            <Text style={{ fontSize: 15 }}>📞</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity style={styles.headerActionButton} onPress={() => props.onNotificationBellPress?.()}>
+          <Text style={{ fontSize: 15 }}>🔔</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerActionButton} onPress={() => void clearChat()}>
+          <Text style={{ fontSize: 15 }}>↺</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -158,8 +220,38 @@ export function ChattyChatView(props: ChattyChatViewProps) {
       )}
 
       {/* Bordered rounded-16 bar with the input on top and an icon row
-          (attach + send) below, matching .chat-input-bar on web. */}
+          (emoji + attach + mic + send) below, matching .chat-input-bar on web. */}
       <View style={[styles.composer, { borderColor: withAlpha(t.headerText, 0.12) }]}>
+        {showEmojiPicker && (
+          <View style={styles.emojiGrid}>
+            {CHATTY_EMOJIS.map((emoji, i) => (
+              <TouchableOpacity key={i} style={styles.emojiCell} onPress={() => setInput((v) => v + emoji)}>
+                <Text style={{ fontSize: 18 }}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        {showAttachMenu && (
+          <View style={styles.attachMenu}>
+            <AttachMenuOption
+              glyph="📷"
+              label="Camera"
+              onPress={() => {
+                setShowAttachMenu(false);
+                (props.onCameraPress || props.onAttachPress || (() => {}))();
+              }}
+            />
+            <AttachMenuOption
+              glyph="🖼️"
+              label="Photo Library"
+              onPress={() => {
+                setShowAttachMenu(false);
+                (props.onPhotoLibraryPress || props.onAttachPress || (() => {}))();
+              }}
+            />
+          </View>
+        )}
+
         <TextInput
           style={[styles.input, { color: t.botBubbleText }]}
           value={input}
@@ -170,9 +262,19 @@ export function ChattyChatView(props: ChattyChatViewProps) {
           onSubmitEditing={handleSend}
         />
         <View style={styles.composerIconRow}>
-          <TouchableOpacity style={styles.attachButton} onPress={props.onAttachPress || (() => {})}>
-            <Text style={styles.attachButtonText}>📎</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row" }}>
+            <TouchableOpacity style={styles.iconButton} onPress={toggleEmojiPicker}>
+              <Text style={styles.iconButtonText}>🙂</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton} onPress={toggleAttachMenu}>
+              <Text style={styles.iconButtonText}>📎</Text>
+            </TouchableOpacity>
+            {props.onMicPress ? (
+              <TouchableOpacity style={styles.iconButton} onPress={() => props.onMicPress?.()}>
+                <Text style={styles.iconButtonText}>🎤</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
           <SendButton
             style={theme?.send_button_style}
             accent={accent}
@@ -206,6 +308,15 @@ function PulsingDot({ color }: { color: string }) {
     return () => loop.stop();
   }, [opacity]);
   return <Animated.View style={[styles.pulsingDot, { backgroundColor: color, opacity }]} />;
+}
+
+function AttachMenuOption({ glyph, label, onPress }: { glyph: string; label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.attachMenuOption} onPress={onPress}>
+      <Text style={{ fontSize: 22 }}>{glyph}</Text>
+      <Text style={styles.attachMenuOptionLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
 }
 
 function BotAvatar({ t, avatarIcon, avatarUrl }: { t: ChattyDesignTokens; avatarIcon?: string | null; avatarUrl?: string | null }) {
@@ -344,16 +455,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    gap: 10,
+    gap: 6,
   },
   headerAvatar: {
     width: 44, height: 44, borderRadius: 22,
     alignItems: "center", justifyContent: "center",
+    marginRight: 4,
   },
   headerAvatarImage: { width: 34, height: 34, borderRadius: 17 },
   headerTitle: { fontSize: 14, fontWeight: "600" },
   headerStatusRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   headerStatus: { fontSize: 9 },
+  headerActionButton: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
   pulsingDot: { width: 6, height: 6, borderRadius: 3 },
   // p-4 space-y-4 on web -> 16 padding, 16 gap between rows.
   messageList: { padding: 16, gap: 16 },
@@ -389,6 +502,32 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 6,
   },
+  emojiGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    maxHeight: 160,
+    marginBottom: 6,
+  },
+  emojiCell: {
+    width: "12.5%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attachMenu: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 8,
+  },
+  attachMenuOption: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 14,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    gap: 4,
+  },
+  attachMenuOptionLabel: { fontSize: 11, color: "#4b5563" },
   input: {
     maxHeight: 100,
     fontSize: 12,
@@ -400,6 +539,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 4,
   },
+  iconButton: {
+    width: 28, height: 28,
+    alignItems: "center", justifyContent: "center",
+  },
+  iconButtonText: { fontSize: 16 },
   sendButtonRound: {
     width: 32, height: 32, borderRadius: 16,
     alignItems: "center", justifyContent: "center",
@@ -413,9 +557,4 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   sendButtonText: { fontSize: 16, fontWeight: "700" },
-  attachButton: {
-    width: 28, height: 28,
-    alignItems: "center", justifyContent: "center",
-  },
-  attachButtonText: { fontSize: 18 },
 });

@@ -2,5 +2,5 @@ export { ChattyClient, DEFAULT_BASE_URL, ChattyRateLimitError, ChattyDomainNotAl
 export { useChattyChat } from "./useChattyChat";
 export { ChattyChatView } from "./ChattyChatView";
 export { ChattyLauncher } from "./ChattyLauncher";
-export { getOrCreateSessionId } from "./session";
-export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle } from "./designTokens";
+export { getOrCreateSessionId, newSession } from "./session";
+export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLogoBgColor, chattyLauncherRadii, chattyBubbleRadii } from "./designTokens";

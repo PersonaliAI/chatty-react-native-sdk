@@ -5,7 +5,7 @@ import {
   ChattyClientOptions,
   ChattyTheme,
 } from "./api";
-import { getOrCreateSessionId } from "./session";
+import { getOrCreateSessionId, newSession } from "./session";
 
 const MSGS_KEY = (botId: string, host: string) => `chatty_msgs_${botId}_${host}`;
 
@@ -37,6 +37,9 @@ export interface UseChattyChatResult {
   error: string | null;
   sendText: (text: string) => Promise<void>;
   sendImage: (file: { uri: string; name: string; type: string }, caption?: string) => Promise<void>;
+  /** Clears the local conversation and starts a fresh session — the native equivalent
+   * of web's header "clear chat" button. */
+  clearChat: () => Promise<void>;
 }
 
 /**
@@ -271,5 +274,26 @@ export function useChattyChat(options: UseChattyChatOptions): UseChattyChatResul
     [sessionId, visitorTimezone, persistMessages]
   );
 
-  return { theme, ready, messages, sending, aiPaused, error, sendText, sendImage };
+  const clearChat = useCallback(async () => {
+    const sid = await newSession(botId, hostKey);
+    setSessionId(sid);
+    lastPollAt.current = new Date().toISOString();
+    setAiPaused(false);
+    setError(null);
+    if (theme?.welcome_message) {
+      const welcomeMsg: ChattyMessage = {
+        id: "welcome",
+        role: "assistant",
+        text: theme.welcome_message,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages([welcomeMsg]);
+      await persistMessages([welcomeMsg]);
+    } else {
+      setMessages([]);
+      await persistMessages([]);
+    }
+  }, [botId, hostKey, theme, persistMessages]);
+
+  return { theme, ready, messages, sending, aiPaused, error, sendText, sendImage, clearChat };
 }

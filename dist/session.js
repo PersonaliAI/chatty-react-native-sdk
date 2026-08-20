@@ -12,6 +12,11 @@ export async function getOrCreateSessionId(botId, hostKey = "app") {
     const existing = await AsyncStorage.getItem(key);
     if (existing)
         return existing;
+    return newSession(botId, hostKey);
+}
+/** Overwrites the stored session id with a fresh one — used by the "clear chat" action. */
+export async function newSession(botId, hostKey = "app") {
+    const key = `chatty_sid_${botId}_${hostKey}`;
     const sid = `v-${randomId()}`;
     await AsyncStorage.setItem(key, sid);
     return sid;

@@ -12,6 +12,7 @@ export interface ChattyTheme {
   teaser_message?: string;
   avatar_icon?: string;
   avatar_url?: string;
+  voice_enabled?: boolean;
 }
 
 export interface ChattyChatResponse {
@@ -172,6 +173,28 @@ export class ChattyClient {
     if (res.status === 403) throw new ChattyDomainNotAllowedError();
     if (!res.ok) throw new Error(`sendMedia failed: ${res.status}`);
     return res.json();
+  }
+
+  /**
+   * Server-side speech-to-text for a recorded voice note (mic button). Accepts
+   * wav/mp3/ogg/aac/aiff/flac (not webm) up to 10MB. Returns the transcribed text, or ""
+   * if speech wasn't detected. This SDK doesn't record audio itself — bring your own
+   * recorder (e.g. expo-av) and pass the resulting file here.
+   */
+  async transcribe(file: { uri: string; name: string; type: string }): Promise<string> {
+    const form = new FormData();
+    form.append("bot_id", this.botId);
+    form.append("file", file);
+
+    const res = await fetch(buildUrl(this.baseUrl, "/api/widget/transcribe", {}), {
+      method: "POST",
+      body: form,
+    });
+    if (res.status === 429) throw new ChattyRateLimitError();
+    if (res.status === 403) throw new ChattyDomainNotAllowedError();
+    if (!res.ok) throw new Error(`transcribe failed: ${res.status}`);
+    const data = await res.json();
+    return data.text ?? "";
   }
 
   /** Poll for new messages (e.g. from a human agent) since the given ISO timestamp. */

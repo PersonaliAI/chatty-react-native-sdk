@@ -115,6 +115,36 @@ export function chattyNormalizeWidgetStyle(raw: string | null | undefined): stri
   return LEGACY_STYLE_MAP[id] || "minimal";
 }
 
+/** The 2nd colon-segment of `widget_style`, e.g. `"minimal:#fff:bubble"` -> `"#fff"` —
+ * overrides the header/bubble avatar circle's background when a real logo/avatar image
+ * isn't shown. */
+export function chattyLogoBgColor(raw: string | null | undefined): string | undefined {
+  if (!raw) return undefined;
+  const parts = raw.split(":");
+  return parts[1] || undefined;
+}
+
+/** The 3rd colon-segment of `widget_style` controls the launcher button's corner shape:
+ * `square` -> 0 corners, `rounded` -> 12 corners, `bubble` -> an asymmetric "speech tail"
+ * corner, anything else (including absent) -> a full circle (radius = size/2), matching
+ * widget.js. Spread the result onto the launcher button's style. */
+export function chattyLauncherRadii(raw: string | null | undefined, size: number, position: "left" | "right") {
+  const parts = (raw || "").split(":");
+  const shapeId = parts[2];
+  switch (shapeId) {
+    case "square":
+      return { borderRadius: 0 };
+    case "rounded":
+      return { borderRadius: 12 };
+    case "bubble":
+      return position === "right"
+        ? { borderTopLeftRadius: 30, borderTopRightRadius: 30, borderBottomRightRadius: 30, borderBottomLeftRadius: 4 }
+        : { borderTopLeftRadius: 30, borderTopRightRadius: 30, borderBottomRightRadius: 4, borderBottomLeftRadius: 30 };
+    default:
+      return { borderRadius: size / 2 };
+  }
+}
+
 /**
  * Bubble border radii with the corner nearest the avatar squared off,
  * matching web's `.rounded-tl-none` (bot) / `.rounded-tr-none` (user) — the
