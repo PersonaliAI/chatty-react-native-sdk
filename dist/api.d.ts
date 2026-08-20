@@ -34,12 +34,15 @@ export interface ChattyClientOptions {
     botId: string;
     /** Override the backend base URL (defaults to the production Cloud Run service). */
     baseUrl?: string;
-    /** Value sent as the `host` field — must match an entry in the bot's allowed_domains if one is configured. */
+    /** Sent as the `host` field, but advisory only — the backend doesn't use it for access
+     * control. See ChattyRateLimitError for how allowed_domains is actually enforced. */
     host?: string;
 }
 /**
  * Thin HTTP client for the Chatty widget API (`/api/widget/*`). No auth header —
- * bot_id alone identifies the bot, optionally restricted by allowed_domains via `host`.
+ * bot_id alone identifies the bot. bot_id is not a secret (it's extractable from any
+ * client); allowed_domains is enforced via rate-limit tier, not a hard reject — see
+ * ChattyRateLimitError.
  */
 export declare class ChattyClient {
     private baseUrl;
