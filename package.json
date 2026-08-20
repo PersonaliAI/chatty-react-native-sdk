@@ -1,6 +1,6 @@
 {
   "name": "@personaliai/react-native",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Official React Native SDK for Chatty AI chatbots — native components, no WebView",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,7 +21,14 @@
     "url": "https://github.com/PersonaliAI/chatty-react-native-sdk.git"
   },
   "homepage": "https://docs.personaliai.com/guides/mobile-sdks",
-  "keywords": ["chatty", "react-native", "chat", "ai", "chatbot", "sdk"],
+  "keywords": [
+    "chatty",
+    "react-native",
+    "chat",
+    "ai",
+    "chatbot",
+    "sdk"
+  ],
   "author": "PersonaliAI",
   "license": "MIT",
   "peerDependencies": {
