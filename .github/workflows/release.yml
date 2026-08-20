@@ -48,3 +48,47 @@ jobs:
         with:
           generate_release_notes: true
           files: "*.tgz"
+
+  example-apk:
+    name: Build example app APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build SDK
+        run: npm ci && npm run build
+
+      - name: Install example app dependencies
+        working-directory: example
+        run: npm install --no-audit --no-fund
+
+      # example/ is a bare Expo-managed app (no android/ios folders checked
+      # in) — prebuild generates a real native Android project from app.json
+      # so it can be built with a plain Gradle wrapper, no EAS account needed.
+      - name: Expo prebuild (Android)
+        working-directory: example
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build debug APK
+        working-directory: example/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: cp example/android/app/build/outputs/apk/debug/app-debug.apk chatty-react-native-example.apk
+
+      - name: Attach APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: chatty-react-native-example.apk
