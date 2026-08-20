@@ -1,6 +1,6 @@
 {
   "name": "@personaliai/react-native",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Official React Native SDK for Chatty AI chatbots — native components, no WebView",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
