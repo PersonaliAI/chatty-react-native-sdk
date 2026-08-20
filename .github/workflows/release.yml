@@ -79,14 +79,21 @@ jobs:
         working-directory: example
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      # Release (not debug) — a debug build doesn't embed the JS bundle, it
+      # expects a live Metro server, which produced "Could not connect to
+      # development server" for anyone who just installed the APK standalone.
+      # Release bundles JS into the APK at build time via the RN Gradle
+      # plugin's bundleReleaseJsAndAssets task, and Expo's generated project
+      # falls back to the debug keystore when no release signing config is
+      # set, so this still produces an installable (if not Play-signed) APK.
+      - name: Build release APK
         working-directory: example/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Rename APK
-        run: cp example/android/app/build/outputs/apk/debug/app-debug.apk chatty-react-native-example.apk
+        run: cp example/android/app/build/outputs/apk/release/app-release.apk chatty-react-native-example.apk
 
       - name: Attach APK to GitHub Release
         uses: softprops/action-gh-release@v2
