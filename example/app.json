@@ -5,6 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#fafafa",
+    "splash": {
+      "backgroundColor": "#fafafa"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.personaliai.chatty.example"
