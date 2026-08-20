@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Animated, LayoutAnimation, UIManager, } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Animated, LayoutAnimation, UIManager, PermissionsAndroid, } from "react-native";
 import { useChattyChat } from "./useChattyChat";
 import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyBubbleRadii } from "./designTokens";
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -83,6 +83,20 @@ export function ChattyChatView(props) {
         setShowEmojiPicker(false);
         setShowAttachMenu((v) => !v);
     };
+    // POST_NOTIFICATIONS only exists as a runtime permission on Android 13+ (API 33) —
+    // PermissionsAndroid.request no-ops correctly on older versions. There's no equivalent
+    // built into React Native core for iOS; see the onNotificationBellPress doc comment.
+    const handleBellPress = async () => {
+        if (Platform.OS === "android" && Platform.Version >= 33) {
+            try {
+                await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+            }
+            catch {
+                // ignore — fall through to the callback either way
+            }
+        }
+        props.onNotificationBellPress?.();
+    };
     if (!ready) {
         return (<View style={[styles.container, styles.center, { backgroundColor: t.containerBg }]}>
         <ActivityIndicator color={accent}/>
@@ -104,15 +118,20 @@ export function ChattyChatView(props) {
             </Text>
           </View>
         </View>
-        {theme?.voice_enabled ? (<TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
-            <Text style={{ fontSize: 15 }}>📞</Text>
-          </TouchableOpacity>) : null}
-        <TouchableOpacity style={styles.headerActionButton} onPress={() => props.onNotificationBellPress?.()}>
-          <Text style={{ fontSize: 15 }}>🔔</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerActionButton} onPress={() => void clearChat()}>
-          <Text style={{ fontSize: 15 }}>↺</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {theme?.voice_enabled ? (<TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
+              <Text style={{ fontSize: 16 }}>📞</Text>
+            </TouchableOpacity>) : null}
+          <TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
+            <Text style={{ fontSize: 16 }}>🔔</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerActionButton} onPress={() => void clearChat()}>
+            <Text style={{ fontSize: 16 }}>↺</Text>
+          </TouchableOpacity>
+          {props.onClose ? (<TouchableOpacity style={styles.headerActionButton} onPress={props.onClose}>
+              <Text style={{ fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>) : null}
+        </View>
       </View>
 
       <FlatList ref={listRef} data={messages} keyExtractor={(m) => m.id} contentContainerStyle={styles.messageList} renderItem={({ item }) => (<Bubble message={item} t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url}/>)} ListFooterComponent={sending ? <TypingIndicator t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url}/> : null}/>
@@ -153,7 +172,7 @@ export function ChattyChatView(props) {
 
         <TextInput style={[styles.input, { color: t.botBubbleText }]} value={input} onChangeText={setInput} placeholder="Type a message…" placeholderTextColor="#9ca3af" multiline onSubmitEditing={handleSend}/>
         <View style={styles.composerIconRow}>
-          <View style={{ flexDirection: "row" }}>
+          <View style={styles.composerIconGroup}>
             <TouchableOpacity style={styles.iconButton} onPress={toggleEmojiPicker}>
               <Text style={styles.iconButtonText}>🙂</Text>
             </TouchableOpacity>
@@ -292,10 +311,11 @@ const styles = StyleSheet.create({
         marginRight: 4,
     },
     headerAvatarImage: { width: 34, height: 34, borderRadius: 17 },
-    headerTitle: { fontSize: 14, fontWeight: "600" },
+    headerTitle: { fontSize: 15, fontWeight: "600" },
     headerStatusRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-    headerStatus: { fontSize: 9 },
-    headerActionButton: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
+    headerStatus: { fontSize: 10 },
+    headerActions: { flexDirection: "row", gap: 2 },
+    headerActionButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
     pulsingDot: { width: 6, height: 6, borderRadius: 3 },
     // p-4 space-y-4 on web -> 16 padding, 16 gap between rows.
     messageList: { padding: 16, gap: 16 },
@@ -307,8 +327,8 @@ const styles = StyleSheet.create({
     bubbleAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
     bubbleAvatarImage: { width: 24, height: 24, borderRadius: 12 },
     bubble: { paddingHorizontal: 10, paddingVertical: 10 }, // p-2.5 on web
-    bubbleTextUser: { color: "#fff", fontSize: 12, lineHeight: 17 },
-    bubbleTextAssistant: { color: "#111827", fontSize: 12, lineHeight: 17 },
+    bubbleTextUser: { color: "#fff", fontSize: 13, lineHeight: 18 },
+    bubbleTextAssistant: { color: "#111827", fontSize: 13, lineHeight: 18 },
     attachedImage: { width: 160, height: 120, borderRadius: 10, marginBottom: 6 },
     starters: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
     starterChip: {
@@ -319,10 +339,10 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         maxWidth: "100%",
     },
-    starterText: { fontSize: 12, fontWeight: "500", color: "#374151" },
+    starterText: { fontSize: 13, fontWeight: "500", color: "#374151" },
     banner: { backgroundColor: "#fef3c7", paddingHorizontal: 16, paddingVertical: 8 },
     errorBanner: { backgroundColor: "#fee2e2" },
-    bannerText: { fontSize: 11, color: "#374151" },
+    bannerText: { fontSize: 12, color: "#374151" },
     composer: {
         margin: 10,
         borderWidth: 1,
@@ -335,7 +355,17 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         maxHeight: 160,
-        marginBottom: 6,
+        marginBottom: 8,
+        padding: 6,
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: "#e5e7eb",
+        shadowColor: "#000",
+        shadowOpacity: 0.18,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 6,
     },
     emojiCell: {
         width: "12.5%",
@@ -347,6 +377,16 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         gap: 12,
         marginBottom: 8,
+        padding: 10,
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: "#e5e7eb",
+        shadowColor: "#000",
+        shadowOpacity: 0.18,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 6,
     },
     attachMenuOption: {
         flex: 1,
@@ -356,10 +396,10 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         gap: 4,
     },
-    attachMenuOptionLabel: { fontSize: 11, color: "#4b5563" },
+    attachMenuOptionLabel: { fontSize: 12, color: "#4b5563" },
     input: {
         maxHeight: 100,
-        fontSize: 12,
+        fontSize: 13,
         padding: 0,
     },
     composerIconRow: {
@@ -368,11 +408,12 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         marginTop: 4,
     },
+    composerIconGroup: { flexDirection: "row", gap: 6 },
     iconButton: {
-        width: 28, height: 28,
+        width: 32, height: 32,
         alignItems: "center", justifyContent: "center",
     },
-    iconButtonText: { fontSize: 16 },
+    iconButtonText: { fontSize: 18 },
     sendButtonRound: {
         width: 32, height: 32, borderRadius: 16,
         alignItems: "center", justifyContent: "center",

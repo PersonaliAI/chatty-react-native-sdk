@@ -22,9 +22,16 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
      * dashboard has voice enabled). This SDK doesn't bundle a voice-call implementation
      * (that's a separate LiveKit integration) — wire this up if your app has one. */
     onVoiceCallPress?: () => void;
-    /** Called when the header's notification-bell button is tapped. Native apps manage push
-     * notifications through their own infrastructure (FCM/APNs), so this SDK doesn't
-     * subscribe to anything itself — wire this up to your app's own notification opt-in. */
+    /** Called when the header's notification-bell button is tapped, after the OS notification
+     * permission has been requested on Android (PermissionsAndroid, built into RN core — no
+     * extra dependency). There's no cross-platform JS API for this on iOS; request it yourself
+     * (e.g. via expo-notifications or your own native module) before/inside this callback.
+     * Native apps still need their own push infrastructure (FCM/APNs) to actually *deliver* a
+     * notification while backgrounded — this SDK only handles the permission ask. */
     onNotificationBellPress?: () => void;
+    /** Renders a close (✕) button in the header when provided — pass this instead of drawing
+     * your own close bar above ChattyChatView (e.g. in a modal wrapper), so there's one header,
+     * not two stacked ones. ChattyLauncher already does this for you. */
+    onClose?: () => void;
 }
 export declare function ChattyChatView(props: ChattyChatViewProps): React.JSX.Element;

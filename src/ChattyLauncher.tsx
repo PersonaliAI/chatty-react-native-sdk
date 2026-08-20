@@ -70,17 +70,17 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
         )}
       </TouchableOpacity>
 
+      {/* Close lives in ChattyChatView's own header (onClose) — no separate close bar
+          drawn here, which used to stack a second, redundant header above it. */}
       <Modal visible={open} animationType="slide" presentationStyle={Platform.OS === "ios" ? "pageSheet" : undefined}>
         <SafeAreaView style={styles.modalSafeArea}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setOpen(false)}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
           <ChattyChatView
             {...chatProps}
             onMessage={(m) => {
               if (!open) setUnread((u) => u + 1);
               chatProps.onMessage?.(m);
             }}
+            onClose={() => setOpen(false)}
           />
         </SafeAreaView>
       </Modal>
@@ -119,6 +119,4 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   modalSafeArea: { flex: 1, backgroundColor: "#fff" },
-  closeButton: { alignSelf: "flex-end", padding: 14 },
-  closeButtonText: { fontSize: 18, color: "#6b7280" },
 });

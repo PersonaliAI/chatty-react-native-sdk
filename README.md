@@ -120,6 +120,8 @@ identity.
   position={"left" | "right"}  // optional, defaults to "right"
   onReady={() => void}
   onMessage={(message) => void}
+  onVoiceCallPress={() => void}
+  onNotificationBellPress={() => void}
 />
 ```
 
@@ -140,7 +142,9 @@ The button color follows the active design's accent automatically — same as we
   onMicPress={() => void}             // optional — mic button only renders when this is set
   onVoiceCallPress={() => void}       // optional, header voice-call button (only shown when
                                        // the bot's dashboard has voice enabled)
-  onNotificationBellPress={() => void}  // optional, header notification-bell button
+  onNotificationBellPress={() => void}  // optional, header notification-bell button — see Notes
+  onClose={() => void}                // optional, renders a header close (✕) button.
+                                       // ChattyLauncher passes this for you.
 />
 ```
 
@@ -175,6 +179,18 @@ layout.
   token the way a browser's `Referer` allows) gets throttled to 5 msgs/120s. The `host` prop
   this SDK sends is advisory only and isn't used for access control. If your bot is
   mobile-primary, leave `allowed_domains` empty to get the normal 30/60s tier instead.
+- **Notification bell.** Tapping it requests `POST_NOTIFICATIONS` on Android 13+
+  (`PermissionsAndroid`, built into RN core — no extra dependency) and then calls
+  `onNotificationBellPress`. There's no cross-platform JS API for the permission ask on iOS —
+  request it yourself (e.g. via `expo-notifications`) before/inside the callback. Either way,
+  that's as far as this SDK goes: actually *delivering* a push when a reply arrives while the
+  app is backgrounded needs FCM/APNs wired up at the app level (register the device token, send
+  it to your backend, store it against the session/user, call FCM/APNs when a message lands for
+  a session that isn't actively polling) — none of that exists yet, it's backend work in
+  `chatty-backend`.
+- **Voice-call button.** Only shown when the bot's dashboard has voice enabled, and only fires
+  `onVoiceCallPress` — this SDK doesn't bundle a voice-call implementation (a separate LiveKit
+  integration, out of scope here).
 - Lead capture and meeting booking happen conversationally (the assistant decides to ask/act) —
   there's no separate REST call to trigger them from the SDK.
 - Polling for human-agent takeover messages runs every 4s while the chat is mounted, matching
