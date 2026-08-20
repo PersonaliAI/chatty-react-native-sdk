@@ -10,23 +10,29 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { ChattyMessage, useChattyChat, UseChattyChatOptions } from "./useChattyChat";
+import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, ChattyDesignTokens } from "./designTokens";
 
 export interface ChattyChatViewProps extends UseChattyChatOptions {
   /** Called once theme/config has loaded and the chat is ready to use. */
   onReady?: () => void;
   /** Called after every new assistant/agent message arrives (mirrors `chatty:message`). */
   onMessage?: (message: ChattyMessage) => void;
+  /** Called when the attachment button is pressed. User should pick an image and call sendImage. */
+  onAttachPress?: () => void;
 }
 
-const FALLBACK_COLOR = "#f97316";
-
 export function ChattyChatView(props: ChattyChatViewProps) {
-  const { theme, ready, messages, sending, aiPaused, error, sendText } = useChattyChat(props);
+  const { theme, ready, messages, sending, aiPaused, error, sendText, sendImage } = useChattyChat(props);
   const [input, setInput] = useState("");
   const listRef = useRef<FlatList<ChattyMessage>>(null);
-  const color = theme?.primary_color || FALLBACK_COLOR;
+  const designId = chattyNormalizeWidgetStyle(theme?.widget_style);
+  const t = CHATTY_DESIGN_TOKENS[designId];
+  // Every design's send button matches its user-bubble background on web —
+  // reuse that as the "accent" for the send button and loading spinners.
+  const accent = t.userBubbleBg;
   const lastMessageCount = useRef(0);
 
   React.useEffect(() => {
@@ -58,23 +64,23 @@ export function ChattyChatView(props: ChattyChatViewProps) {
 
   if (!ready) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator color={color} />
+      <View style={[styles.container, styles.center, { backgroundColor: t.containerBg }]}>
+        <ActivityIndicator color={accent} />
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: t.containerBg }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
-      <View style={[styles.header, { backgroundColor: color }]}>
+      <View style={[styles.header, { backgroundColor: t.headerBg }]}>
         {theme?.logo_url ? (
           <Image source={{ uri: theme.logo_url }} style={styles.avatar} />
         ) : null}
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={[styles.headerTitle, { color: t.headerText }]} numberOfLines={1}>
           {theme?.name || "Chat"}
         </Text>
       </View>
@@ -84,15 +90,19 @@ export function ChattyChatView(props: ChattyChatViewProps) {
         data={messages}
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.messageList}
-        renderItem={({ item }) => <Bubble message={item} color={color} />}
-        ListFooterComponent={sending ? <TypingIndicator color={color} /> : null}
+        renderItem={({ item }) => <Bubble message={item} t={t} />}
+        ListFooterComponent={sending ? <TypingIndicator t={t} accent={accent} /> : null}
       />
 
       {theme?.conversation_starters && theme.conversation_starters.length > 0 && messages.length <= 1 && (
         <View style={styles.starters}>
           {theme.conversation_starters.map((s, i) => (
-            <TouchableOpacity key={i} style={styles.starterChip} onPress={() => handleStarter(s)}>
-              <Text style={styles.starterText} numberOfLines={2}>
+            <TouchableOpacity
+              key={i}
+              style={[styles.starterChip, { borderColor: withAlpha(accent, 0.35) }]}
+              onPress={() => handleStarter(s)}
+            >
+              <Text style={[styles.starterText, { color: accent }]} numberOfLines={2}>
                 {s}
               </Text>
             </TouchableOpacity>
@@ -112,6 +122,12 @@ export function ChattyChatView(props: ChattyChatViewProps) {
       )}
 
       <View style={styles.composer}>
+        <TouchableOpacity
+          style={styles.attachButton}
+          onPress={props.onAttachPress || (() => {})}
+        >
+          <Text style={styles.attachButtonText}>📎</Text>
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           value={input}
@@ -122,42 +138,99 @@ export function ChattyChatView(props: ChattyChatViewProps) {
           onSubmitEditing={handleSend}
         />
         <TouchableOpacity
-          style={[styles.sendButton, { backgroundColor: color, opacity: input.trim() ? 1 : 0.5 }]}
+          style={[styles.sendButton, { backgroundColor: accent, opacity: input.trim() ? 1 : 0.5 }]}
           onPress={handleSend}
           disabled={!input.trim() || sending}
         >
-          <Text style={styles.sendButtonText}>{"↑"}</Text>
+          <Text style={[styles.sendButtonText, { color: t.userBubbleText }]}>{"↑"}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-function Bubble({ message, color }: { message: ChattyMessage; color: string }) {
+/** Applies an alpha to a "#rrggbb" hex color; passes rgba()/other formats through unchanged. */
+function withAlpha(hex: string, alpha: number): string {
+  if (!hex.startsWith("#") || hex.length !== 7) return hex;
+  const a = Math.round(alpha * 255).toString(16).padStart(2, "0");
+  return `${hex}${a}`;
+}
+
+function Bubble({ message, t }: { message: ChattyMessage; t: ChattyDesignTokens }) {
   const isUser = message.role === "user";
   return (
     <View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant]}>
       <View
         style={[
           styles.bubble,
-          isUser ? { backgroundColor: color, borderBottomRightRadius: 4 } : { backgroundColor: "#f3f4f6", borderBottomLeftRadius: 4 },
+          isUser
+            ? { backgroundColor: t.userBubbleBg, borderRadius: t.userBubbleRadius, borderBottomRightRadius: 4 }
+            : { backgroundColor: t.botBubbleBg, borderRadius: t.botBubbleRadius, borderBottomLeftRadius: 4 },
         ]}
       >
         {message.fileUrl ? <Image source={{ uri: message.fileUrl }} style={styles.attachedImage} /> : null}
         {message.text ? (
-          <Text style={isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant}>{message.text}</Text>
+          isUser ? (
+            <Text style={[styles.bubbleTextUser, { color: t.userBubbleText }]}>{message.text}</Text>
+          ) : (
+            <SimpleMarkdown text={message.text} style={[styles.bubbleTextAssistant, { color: t.botBubbleText }]} />
+          )
         ) : null}
       </View>
     </View>
   );
 }
 
-function TypingIndicator({ color }: { color: string }) {
+function TypingIndicator({ t, accent }: { t: ChattyDesignTokens; accent: string }) {
   return (
     <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
-      <View style={[styles.bubble, { backgroundColor: "#f3f4f6" }]}>
-        <ActivityIndicator size="small" color={color} />
+      <View style={[styles.bubble, { backgroundColor: t.botBubbleBg, borderRadius: t.botBubbleRadius }]}>
+        <ActivityIndicator size="small" color={accent} />
       </View>
+    </View>
+  );
+}
+
+function SimpleMarkdown({ text, style }: { text: string; style?: any }) {
+  const lines = text.split('\n');
+  return (
+    <View>
+      {lines.map((line, i) => {
+        let isList = false;
+        if (line.startsWith('- ')) {
+          isList = true;
+          line = '  • ' + line.slice(2);
+        }
+        let isHeading = false;
+        if (line.startsWith('### ')) {
+          isHeading = true;
+          line = line.slice(4);
+        }
+        
+        const parts = line.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))/g);
+        const textStyle = isHeading ? { fontWeight: 'bold' as const, fontSize: 16 } : undefined;
+
+        return (
+          <Text key={i} style={[style, textStyle]}>
+            {parts.map((part, j) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <Text key={j} style={{ fontWeight: 'bold' }}>{part.slice(2, -2)}</Text>;
+              }
+              if (part.startsWith('*') && part.endsWith('*')) {
+                return <Text key={j} style={{ fontStyle: 'italic' }}>{part.slice(1, -1)}</Text>;
+              }
+              if (part.startsWith('`') && part.endsWith('`')) {
+                return <Text key={j} style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', backgroundColor: '#f0f0f0' }}>{part.slice(1, -1)}</Text>;
+              }
+              const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
+              if (linkMatch) {
+                return <Text key={j} style={{ color: '#007AFF', textDecorationLine: 'underline' }} onPress={() => Linking.openURL(linkMatch[2])}>{linkMatch[1]}</Text>;
+              }
+              return <Text key={j}>{part}</Text>;
+            })}
+          </Text>
+        );
+      })}
     </View>
   );
 }
@@ -222,4 +295,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendButtonText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  attachButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
+  },
+  attachButtonText: { fontSize: 20 },
 });

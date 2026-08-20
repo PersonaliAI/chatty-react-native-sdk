@@ -1,17 +1,17 @@
-# @chatty/react-native
+# @personaliai/react-native
 
 Native React Native chat widget SDK for [Chatty](https://chatty.personaliai.com) — talks to the same `/api/widget/*` backend as the web widget, rendered with real React Native components (no WebView).
 
 ## Install
 
 ```bash
-npm install @chatty/react-native @react-native-async-storage/async-storage
+npm install @personaliai/react-native @react-native-async-storage/async-storage
 ```
 
 ## Usage — floating launcher (recommended)
 
 ```tsx
-import { ChattyLauncher } from "@chatty/react-native";
+import { ChattyLauncher } from "@personaliai/react-native";
 
 export default function App() {
   return (
@@ -26,7 +26,7 @@ export default function App() {
 ## Usage — embedded full-screen chat
 
 ```tsx
-import { ChattyChatView } from "@chatty/react-native";
+import { ChattyChatView } from "@personaliai/react-native";
 
 function SupportScreen() {
   return <ChattyChatView botId="YOUR_BOT_ID" />;
@@ -36,7 +36,7 @@ function SupportScreen() {
 ## Usage — headless (build your own UI)
 
 ```tsx
-import { useChattyChat } from "@chatty/react-native";
+import { useChattyChat } from "@personaliai/react-native";
 
 function CustomChat() {
   const { messages, sendText, sending, theme } = useChattyChat({ botId: "YOUR_BOT_ID" });

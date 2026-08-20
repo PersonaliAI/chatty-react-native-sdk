@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, View, Platform } from "react-native";
 import { ChattyChatView, ChattyChatViewProps } from "./ChattyChatView";
 import { ChattyClient, ChattyTheme } from "./api";
+import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle } from "./designTokens";
 
 export interface ChattyLauncherProps extends ChattyChatViewProps {
   /** "left" | "right", defaults to "right". */
@@ -12,7 +13,10 @@ const FALLBACK_COLOR = "#f97316";
 
 /**
  * Floating launcher button + full-screen modal chat panel — the native-SDK
- * equivalent of widget.js's launcher button + iframe panel.
+ * equivalent of widget.js's launcher button + iframe panel. The button color
+ * follows the selected design's own accent (same as web's LAUNCHER_STYLES),
+ * not primary_color — every design's launcher matches its own palette by
+ * default regardless of what primary_color happens to be set to.
  */
 export function ChattyLauncher(props: ChattyLauncherProps) {
   const { position = "right", ...chatProps } = props;
@@ -25,7 +29,9 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
     new ChattyClient({ botId: props.botId, baseUrl: props.baseUrl, host: props.host })
       .getTheme()
       .then((t: ChattyTheme) => {
-        if (!cancelled && t.primary_color) setColor(t.primary_color);
+        if (cancelled) return;
+        const designId = chattyNormalizeWidgetStyle(t.widget_style);
+        setColor(CHATTY_DESIGN_TOKENS[designId].userBubbleBg);
       })
       .catch(() => {});
     return () => {

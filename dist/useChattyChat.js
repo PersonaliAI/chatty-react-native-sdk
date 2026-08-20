@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ChattyClient, } from "./api";
 import { getOrCreateSessionId } from "./session";
+const MSGS_KEY = (botId, host) => `chatty_msgs_${botId}_${host}`;
 /**
  * Drives a full Chatty conversation: loads bot theme/config, manages the
  * persistent session id, sends messages, and polls for human-agent replies.
@@ -8,10 +10,9 @@ import { getOrCreateSessionId } from "./session";
  */
 export function useChattyChat(options) {
     const { botId, baseUrl, host, hostKey = "app", pollIntervalMs = 4000, visitorTimezone = "UTC" } = options;
-    const clientRef = useRef(null);
-    if (!clientRef.current) {
-        clientRef.current = new ChattyClient({ botId, baseUrl, host });
-    }
+    const currentClient = useMemo(() => new ChattyClient({ botId, baseUrl, host }), [botId, baseUrl, host]);
+    const clientRef = useRef(currentClient);
+    clientRef.current = currentClient;
     const [theme, setTheme] = useState(null);
     const [ready, setReady] = useState(false);
     const [sessionId, setSessionId] = useState(null);
@@ -20,9 +21,34 @@ export function useChattyChat(options) {
     const [aiPaused, setAiPaused] = useState(false);
     const [error, setError] = useState(null);
     const lastPollAt = useRef(new Date().toISOString());
+    const persistMessages = useCallback(async (newMsgs) => {
+        try {
+            const toSave = newMsgs.slice(-100);
+            await AsyncStorage.setItem(MSGS_KEY(botId, host || "app"), JSON.stringify(toSave));
+        }
+        catch (e) {
+            // silent
+        }
+    }, [botId, host]);
     useEffect(() => {
         let cancelled = false;
+        setReady(false);
+        setTheme(null);
+        setMessages([]);
         (async () => {
+            let hasCached = false;
+            try {
+                const cachedStr = await AsyncStorage.getItem(MSGS_KEY(botId, host || "app"));
+                if (cachedStr) {
+                    const parsed = JSON.parse(cachedStr);
+                    if (parsed && parsed.length > 0) {
+                        if (!cancelled)
+                            setMessages(parsed);
+                        hasCached = true;
+                    }
+                }
+            }
+            catch (e) { }
             try {
                 const [t, sid] = await Promise.all([
                     clientRef.current.getTheme(),
@@ -32,15 +58,15 @@ export function useChattyChat(options) {
                     return;
                 setTheme(t);
                 setSessionId(sid);
-                if (t.welcome_message) {
-                    setMessages([
-                        {
-                            id: "welcome",
-                            role: "assistant",
-                            text: t.welcome_message,
-                            createdAt: new Date().toISOString(),
-                        },
-                    ]);
+                if (t.welcome_message && !hasCached) {
+                    const welcomeMsg = {
+                        id: "welcome",
+                        role: "assistant",
+                        text: t.welcome_message,
+                        createdAt: new Date().toISOString(),
+                    };
+                    setMessages([welcomeMsg]);
+                    persistMessages([welcomeMsg]);
                 }
                 setReady(true);
             }
@@ -63,15 +89,19 @@ export function useChattyChat(options) {
                 const res = await clientRef.current.poll(sessionId, lastPollAt.current);
                 if (res.messages.length > 0) {
                     lastPollAt.current = res.messages[res.messages.length - 1].created_at;
-                    setMessages((prev) => [
-                        ...prev,
-                        ...res.messages.map((m, i) => ({
-                            id: `poll-${Date.now()}-${i}`,
-                            role: (m.sender === "agent" ? "agent" : "assistant"),
-                            text: m.content,
-                            createdAt: m.created_at,
-                        })),
-                    ]);
+                    setMessages((prev) => {
+                        const newMsgs = [
+                            ...prev,
+                            ...res.messages.map((m, i) => ({
+                                id: `poll-${Date.now()}-${i}`,
+                                role: (m.sender === "agent" ? "agent" : "assistant"),
+                                text: m.content,
+                                createdAt: m.created_at,
+                            })),
+                        ];
+                        persistMessages(newMsgs);
+                        return newMsgs;
+                    });
                 }
                 setAiPaused(!!res.ai_paused);
             }
@@ -81,6 +111,30 @@ export function useChattyChat(options) {
         }, pollIntervalMs);
         return () => clearInterval(interval);
     }, [sessionId, ready, pollIntervalMs]);
+    const sendTextStream = useCallback(async (text) => {
+        if (!sessionId)
+            return;
+        const replyId = `reply-${Date.now()}`;
+        setMessages((prev) => {
+            const newMsgs = [
+                ...prev,
+                { id: replyId, role: "assistant", text: "", createdAt: new Date().toISOString() },
+            ];
+            persistMessages(newMsgs);
+            return newMsgs;
+        });
+        await clientRef.current.sendMessageStream(sessionId, text, (token) => {
+            setMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === replyId);
+                if (idx === -1)
+                    return prev;
+                const newMsgs = [...prev];
+                newMsgs[idx] = { ...newMsgs[idx], text: newMsgs[idx].text + token };
+                persistMessages(newMsgs);
+                return newMsgs;
+            });
+        }, visitorTimezone);
+    }, [sessionId, visitorTimezone, persistMessages]);
     const sendText = useCallback(async (text) => {
         if (!sessionId || !text.trim())
             return;
@@ -90,50 +144,76 @@ export function useChattyChat(options) {
             text,
             createdAt: new Date().toISOString(),
         };
-        setMessages((prev) => [...prev, userMsg]);
+        setMessages((prev) => {
+            const newMsgs = [...prev, userMsg];
+            persistMessages(newMsgs);
+            return newMsgs;
+        });
         setSending(true);
         setError(null);
         try {
-            const res = await clientRef.current.sendMessage(sessionId, text, visitorTimezone);
-            setAiPaused(!!res.ai_paused);
-            if (!res.ai_paused && res.reply) {
-                setMessages((prev) => [
-                    ...prev,
-                    { id: `reply-${Date.now()}`, role: "assistant", text: res.reply, createdAt: new Date().toISOString() },
-                ]);
-            }
+            await sendTextStream(text);
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            try {
+                setMessages((prev) => {
+                    const newMsgs = prev.filter((m) => !(m.role === "assistant" && m.text === ""));
+                    persistMessages(newMsgs);
+                    return newMsgs;
+                });
+                const res = await clientRef.current.sendMessage(sessionId, text, visitorTimezone);
+                setAiPaused(!!res.ai_paused);
+                if (!res.ai_paused && res.reply) {
+                    setMessages((prev) => {
+                        const newMsgs = [
+                            ...prev,
+                            { id: `reply-${Date.now()}`, role: "assistant", text: res.reply, createdAt: new Date().toISOString() },
+                        ];
+                        persistMessages(newMsgs);
+                        return newMsgs;
+                    });
+                }
+            }
+            catch (err) {
+                setError(err instanceof Error ? err.message : String(err));
+            }
         }
         finally {
             setSending(false);
         }
-    }, [sessionId, visitorTimezone]);
+    }, [sessionId, visitorTimezone, persistMessages, sendTextStream]);
     const sendImage = useCallback(async (file, caption = "") => {
         if (!sessionId)
             return;
         setSending(true);
         setError(null);
-        setMessages((prev) => [
-            ...prev,
-            {
-                id: `local-img-${Date.now()}`,
-                role: "user",
-                text: caption,
-                createdAt: new Date().toISOString(),
-                fileUrl: file.uri,
-                fileType: file.type,
-            },
-        ]);
+        setMessages((prev) => {
+            const newMsgs = [
+                ...prev,
+                {
+                    id: `local-img-${Date.now()}`,
+                    role: "user",
+                    text: caption,
+                    createdAt: new Date().toISOString(),
+                    fileUrl: file.uri,
+                    fileType: file.type,
+                },
+            ];
+            persistMessages(newMsgs);
+            return newMsgs;
+        });
         try {
             const res = await clientRef.current.sendMedia(sessionId, file, caption, visitorTimezone);
             setAiPaused(!!res.ai_paused);
             if (!res.ai_paused && res.reply) {
-                setMessages((prev) => [
-                    ...prev,
-                    { id: `reply-${Date.now()}`, role: "assistant", text: res.reply, createdAt: new Date().toISOString() },
-                ]);
+                setMessages((prev) => {
+                    const newMsgs = [
+                        ...prev,
+                        { id: `reply-${Date.now()}`, role: "assistant", text: res.reply, createdAt: new Date().toISOString() },
+                    ];
+                    persistMessages(newMsgs);
+                    return newMsgs;
+                });
             }
         }
         catch (e) {
@@ -142,6 +222,6 @@ export function useChattyChat(options) {
         finally {
             setSending(false);
         }
-    }, [sessionId, visitorTimezone]);
+    }, [sessionId, visitorTimezone, persistMessages]);
     return { theme, ready, messages, sending, aiPaused, error, sendText, sendImage };
 }

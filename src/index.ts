@@ -14,3 +14,5 @@ export type { ChattyChatViewProps } from "./ChattyChatView";
 export { ChattyLauncher } from "./ChattyLauncher";
 export type { ChattyLauncherProps } from "./ChattyLauncher";
 export { getOrCreateSessionId } from "./session";
+export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle } from "./designTokens";
+export type { ChattyDesignTokens } from "./designTokens";

@@ -1,4 +1,4 @@
-export const DEFAULT_BASE_URL = "https://personaliai-api-376030619262.us-central1.run.app";
+export const DEFAULT_BASE_URL = "https://api.chatty.personaliai.com";
 function buildUrl(baseUrl, path, params) {
     const url = new URL(path, baseUrl);
     for (const [k, v] of Object.entries(params)) {
@@ -26,6 +26,55 @@ export class ChattyClient {
         if (!res.ok)
             throw new Error(`getTheme failed: ${res.status}`);
         return res.json();
+    }
+    async sendMessageStream(sessionId, text, onToken, visitorTimezone = "UTC") {
+        const res = await fetch(buildUrl(this.baseUrl, "/api/widget/chat/stream", {}), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                bot_id: this.botId,
+                session_id: sessionId,
+                text,
+                visitor_timezone: visitorTimezone,
+                host: this.host,
+            }),
+        });
+        if (res.status === 429)
+            throw new ChattyRateLimitError();
+        if (res.status === 403)
+            throw new ChattyDomainNotAllowedError();
+        if (!res.ok)
+            throw new Error(`sendMessageStream failed: ${res.status}`);
+        const reader = res.body?.getReader();
+        if (!reader)
+            throw new Error("Response body is not readable");
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    const dataStr = line.slice(6).trim();
+                    if (!dataStr)
+                        continue;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        if (data.token)
+                            onToken(data.token);
+                        if (data.done)
+                            return;
+                    }
+                    catch (e) {
+                        // ignore
+                    }
+                }
+            }
+        }
     }
     async sendMessage(sessionId, text, visitorTimezone = "UTC") {
         const res = await fetch(buildUrl(this.baseUrl, "/api/widget/chat", {}), {

@@ -5,5 +5,7 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
     onReady?: () => void;
     /** Called after every new assistant/agent message arrives (mirrors `chatty:message`). */
     onMessage?: (message: ChattyMessage) => void;
+    /** Called when the attachment button is pressed. User should pick an image and call sendImage. */
+    onAttachPress?: () => void;
 }
 export declare function ChattyChatView(props: ChattyChatViewProps): React.JSX.Element;

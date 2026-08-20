@@ -1,4 +1,4 @@
-export declare const DEFAULT_BASE_URL = "https://personaliai-api-376030619262.us-central1.run.app";
+export declare const DEFAULT_BASE_URL = "https://api.chatty.personaliai.com";
 export interface ChattyTheme {
     name?: string;
     primary_color?: string;
@@ -47,6 +47,7 @@ export declare class ChattyClient {
     private host?;
     constructor(options: ChattyClientOptions);
     getTheme(): Promise<ChattyTheme>;
+    sendMessageStream(sessionId: string, text: string, onToken: (token: string) => void, visitorTimezone?: string): Promise<void>;
     sendMessage(sessionId: string, text: string, visitorTimezone?: string): Promise<ChattyChatResponse>;
     /**
      * Send an image/file attachment. `file` must be a React Native file-uri descriptor
