@@ -9,20 +9,20 @@ export interface ChattyLauncherProps extends ChattyChatViewProps {
   position?: "left" | "right";
 }
 
-const FALLBACK_COLOR = "#f97316";
+const FALLBACK_DESIGN = "minimal";
 
 /**
  * Floating launcher button + full-screen modal chat panel — the native-SDK
- * equivalent of widget.js's launcher button + iframe panel. The button color
- * follows the selected design's own accent (same as web's LAUNCHER_STYLES),
- * not primary_color — every design's launcher matches its own palette by
- * default regardless of what primary_color happens to be set to.
+ * equivalent of widget.js's launcher button + iframe panel. 60x60 (widget.js's
+ * actual size), color/shadow follow the selected design's own LAUNCHER_STYLES
+ * entry — NOT always the same as the user-bubble color (e.g. dark-sleek's
+ * launcher is dark, not its teal accent; neubrutalism's is black, not pink).
  */
 export function ChattyLauncher(props: ChattyLauncherProps) {
   const { position = "right", ...chatProps } = props;
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [color, setColor] = useState(FALLBACK_COLOR);
+  const [designId, setDesignId] = useState(FALLBACK_DESIGN);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,8 +30,7 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
       .getTheme()
       .then((t: ChattyTheme) => {
         if (cancelled) return;
-        const designId = chattyNormalizeWidgetStyle(t.widget_style);
-        setColor(CHATTY_DESIGN_TOKENS[designId].userBubbleBg);
+        setDesignId(chattyNormalizeWidgetStyle(t.widget_style));
       })
       .catch(() => {});
     return () => {
@@ -40,12 +39,18 @@ export function ChattyLauncher(props: ChattyLauncherProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.botId]);
 
+  const tokens = CHATTY_DESIGN_TOKENS[designId] ?? CHATTY_DESIGN_TOKENS[FALLBACK_DESIGN];
+
   return (
     <>
       <TouchableOpacity
         style={[
           styles.button,
-          { backgroundColor: color, [position]: 20 } as object,
+          {
+            [position]: 20,
+            backgroundColor: tokens.launcherBg,
+            shadowColor: tokens.launcherShadow,
+          } as object,
         ]}
         onPress={() => {
           setOpen(true);
@@ -83,13 +88,13 @@ const styles = StyleSheet.create({
   button: {
     position: "absolute",
     bottom: 20,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    // widget.js's launcher is 60x60px.
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
+    shadowOpacity: 1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
@@ -98,17 +103,17 @@ const styles = StyleSheet.create({
   buttonIcon: { fontSize: 24 },
   badge: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "#ef4444",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
   },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  badgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   modalSafeArea: { flex: 1, backgroundColor: "#fff" },
   closeButton: { alignSelf: "flex-end", padding: 14 },
   closeButtonText: { fontSize: 18, color: "#6b7280" },
