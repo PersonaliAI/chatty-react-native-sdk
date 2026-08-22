@@ -42,19 +42,30 @@ export interface UseChattyChatResult {
   clearChat: () => Promise<void>;
 }
 
+// Real IANA zone (e.g. "Asia/Colombo"), not a literal "UTC" default — the assistant uses
+// this to skip asking the visitor for their timezone (see widget_brain.py's scheduling
+// prompt), same as the web widget already does via the same Intl call. Guarded because
+// some release-mode Hermes builds ship without full Intl.DateTimeFormat support — this ran
+// unguarded as a destructuring default (i.e. at render time, outside any try/catch) and a
+// throw there is an uncaught render-time exception with no JS error boundary to catch it,
+// which crashes the whole app on open with no visible error.
+function _detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 /**
  * Drives a full Chatty conversation: loads bot theme/config, manages the
  * persistent session id, sends messages, and polls for human-agent replies.
  * This is the native-SDK equivalent of widget.js's embed iframe lifecycle.
  */
 export function useChattyChat(options: UseChattyChatOptions): UseChattyChatResult {
-  // Real IANA zone (e.g. "Asia/Colombo"), not a literal "UTC" default — the assistant uses
-  // this to skip asking the visitor for their timezone (see widget_brain.py's scheduling
-  // prompt), same as the web widget already does via the same Intl call. Available in both
-  // Hermes and JSC on RN 0.72+ (this SDK's minimum).
   const {
     botId, baseUrl, host, hostKey = "app", pollIntervalMs = 4000,
-    visitorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    visitorTimezone = _detectTimezone(),
   } = options;
 
   const currentClient = useMemo(() => new ChattyClient({ botId, baseUrl, host }), [botId, baseUrl, host]);
