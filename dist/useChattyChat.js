@@ -9,7 +9,11 @@ const MSGS_KEY = (botId, host) => `chatty_msgs_${botId}_${host}`;
  * This is the native-SDK equivalent of widget.js's embed iframe lifecycle.
  */
 export function useChattyChat(options) {
-    const { botId, baseUrl, host, hostKey = "app", pollIntervalMs = 4000, visitorTimezone = "UTC" } = options;
+    // Real IANA zone (e.g. "Asia/Colombo"), not a literal "UTC" default — the assistant uses
+    // this to skip asking the visitor for their timezone (see widget_brain.py's scheduling
+    // prompt), same as the web widget already does via the same Intl call. Available in both
+    // Hermes and JSC on RN 0.72+ (this SDK's minimum).
+    const { botId, baseUrl, host, hostKey = "app", pollIntervalMs = 4000, visitorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone, } = options;
     const currentClient = useMemo(() => new ChattyClient({ botId, baseUrl, host }), [botId, baseUrl, host]);
     const clientRef = useRef(currentClient);
     clientRef.current = currentClient;
