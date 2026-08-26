@@ -172,9 +172,8 @@ export function useChattyChat(options: UseChattyChatOptions): UseChattyChatResul
   }, [sessionId, ready, pollIntervalMs]);
 
   const sendTextStream = useCallback(
-    async (text: string) => {
+    async (text: string, replyId: string) => {
       if (!sessionId) return;
-      const replyId = `reply-${Date.now()}`;
       setMessages((prev) => {
         const newMsgs = [
           ...prev,
@@ -219,12 +218,18 @@ export function useChattyChat(options: UseChattyChatOptions): UseChattyChatResul
       });
       setSending(true);
       setError(null);
+      const replyId = `reply-${Date.now()}`;
       try {
-        await sendTextStream(text);
+        await sendTextStream(text, replyId);
       } catch (e) {
         try {
+          // Remove this attempt's placeholder/partial bubble by id — not by
+          // an empty-text check, which misses a bubble that already
+          // received some tokens before the stream failed mid-way and
+          // would otherwise leave a stray partial reply alongside the
+          // fresh one from the non-streaming fallback below.
           setMessages((prev) => {
-            const newMsgs = prev.filter((m) => !(m.role === "assistant" && m.text === ""));
+            const newMsgs = prev.filter((m) => m.id !== replyId);
             persistMessages(newMsgs);
             return newMsgs;
           });
