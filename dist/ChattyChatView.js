@@ -158,6 +158,14 @@ export function ChattyChatView(props) {
                 setShowAttachMenu(false);
                 (props.onPhotoLibraryPress || props.onAttachPress || (() => { }))();
             }}/>
+            <AttachMenuOption glyph="📄" label="Documents" onPress={() => {
+                setShowAttachMenu(false);
+                (props.onDocumentPress || props.onAttachPress || (() => { }))();
+            }}/>
+            <AttachMenuOption glyph="📍" label="Location" onPress={() => {
+                setShowAttachMenu(false);
+                (props.onShareLocationPress || props.onAttachPress || (() => { }))();
+            }}/>
           </View>)}
 
         <TextInput style={[styles.input, { color: t.botBubbleText }]} value={input} onChangeText={setInput} placeholder="Type a message…" placeholderTextColor="#9ca3af" multiline onSubmitEditing={handleSend}/>

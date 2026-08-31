@@ -27,7 +27,7 @@ avatar, and composer with real `View`/`Text`/`FlatList` components — no `WebVi
 | **No WebView, anywhere** | Every bubble, avatar, and the composer are real RN components — no iframe, no JS bridge, no WebView memory/perf overhead. |
 | **Matches your dashboard automatically** | Fetches the bot's theme and renders with the exact colors, corner radii, and launcher shape chosen in the dashboard — no manual styling. |
 | **Three integration shapes** | A floating [`ChattyLauncher`](#chattylauncher), an embedded [`ChattyChatView`](#chattychatview), or the headless [`useChattyChat`](#usechattychat-headless) hook. |
-| **A real composer, not a stub** | Full-Unicode emoji picker (search + categories, ~1,850 emoji) and an animated attach menu, built in — camera/photo/mic wire up to whatever picker your app already uses. |
+| **A real composer, not a stub** | Full-Unicode emoji picker (search + categories, ~1,850 emoji) and an animated attach menu (camera, photo, documents, location), built in — each wires up to whatever picker/recorder/location API your app already uses. |
 | **Works with bare RN and Expo** | No native linking required beyond `@react-native-async-storage/async-storage`, which most apps already have. |
 
 ## Install
@@ -142,7 +142,9 @@ The button color follows the active design's accent automatically — same as we
   onMessage={(message) => void}
   onCameraPress={() => void}          // optional, "Camera" tapped in the attach menu
   onPhotoLibraryPress={() => void}    // optional, "Photo Library" tapped in the attach menu
-  onAttachPress={() => void}          // optional fallback if the two above aren't given
+  onDocumentPress={() => void}        // optional, "Documents" tapped in the attach menu
+  onShareLocationPress={() => void}   // optional, "Location" tapped in the attach menu
+  onAttachPress={() => void}          // optional fallback if the four above aren't given
   onMicPress={() => void}             // optional — mic button only renders when this is set
   onVoiceCallPress={() => void}       // optional, header voice-call button (only shown when
                                        // the bot's dashboard has voice enabled)
@@ -155,13 +157,16 @@ The button color follows the active design's accent automatically — same as we
 
 > [!NOTE]
 > This SDK renders the composer's emoji picker and attach/mic UI (with layout animation), but it
-> deliberately doesn't bundle a camera, photo-library, or audio-recording dependency itself —
-> that would mean forcing every consumer (bare RN and Expo alike) to install and link a native
-> module they might not want. Instead, `onCameraPress` / `onPhotoLibraryPress` / `onMicPress`
-> fire when their button is tapped so you can wire up whichever picker/recorder your app already
-> uses (`expo-image-picker` + `expo-av`, `react-native-image-picker`, etc.) and then call
-> `sendImage` / `ChattyClient.transcribe()` yourself. The header's clear-chat button (↺) is fully
-> built in and needs no wiring — it resets local messages and starts a fresh session.
+> deliberately doesn't bundle a camera, photo-library, document-picker, geolocation, or
+> audio-recording dependency itself — that would mean forcing every consumer (bare RN and Expo
+> alike) to install and link a native module they might not want. Instead, `onCameraPress` /
+> `onPhotoLibraryPress` / `onDocumentPress` / `onShareLocationPress` / `onMicPress` fire when
+> their button is tapped so you can wire up whichever picker/recorder/location API your app
+> already uses (`expo-image-picker` + `expo-av` + `expo-document-picker` + `expo-location`,
+> `react-native-image-picker`, etc.) and then call `sendImage` yourself — for location, matching
+> the web widget's behavior means setting the composer text to a Google Maps link rather than
+> sending a special message type. The header's clear-chat button (↺) is fully built in and needs
+> no wiring — it resets local messages and starts a fresh session.
 
 ### `useChattyChat` (headless)
 

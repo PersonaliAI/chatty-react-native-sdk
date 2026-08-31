@@ -14,6 +14,18 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
     onCameraPress?: () => void;
     /** Called when "Photo Library" is tapped in the attach menu — same pattern as onCameraPress. */
     onPhotoLibraryPress?: () => void;
+    /** Called when "Documents" is tapped in the attach menu — same pattern as onCameraPress. This
+     * SDK doesn't bundle a document-picker dependency itself; wire this up with
+     * expo-document-picker / react-native-document-picker (or your own) and call `sendImage`
+     * (from `useChattyChat`) with the result. */
+    onDocumentPress?: () => void;
+    /** Called when "Location" is tapped in the attach menu — same pattern as onCameraPress. This
+     * SDK never requests location permission itself; wire this up with expo-location /
+     * @react-native-community/geolocation (or your own) and, once you have a fix, set the input
+     * text yourself (e.g. via the headless `useChattyChat` hook), matching the web widget's
+     * behavior of dropping a Google Maps link into the composer rather than sending a special
+     * message type. */
+    onShareLocationPress?: () => void;
     /** Called when the mic button is tapped. This SDK doesn't bundle an audio-recording
      * dependency itself — wire this up with expo-av (or your own recorder), then call
      * `ChattyClient.transcribe()` with the recorded file and fill the input with the result. */
