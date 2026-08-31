@@ -33,5 +33,12 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
      * your own close bar above ChattyChatView (e.g. in a modal wrapper), so there's one header,
      * not two stacked ones. ChattyLauncher already does this for you. */
     onClose?: () => void;
+    /** Shows the header's notification-bell button and, on Android, requests
+     * POST_NOTIFICATIONS (a runtime permission on API 33+) when tapped. Set `false` to hide the
+     * button entirely — the SDK then never calls PermissionsAndroid.request at all, so your app
+     * fully controls if/when/how notification permission is ever requested. Default `true`.
+     * Camera/photo/mic aren't listed here because this SDK never requests those permissions
+     * itself — see onCameraPress/onPhotoLibraryPress/onMicPress above. */
+    enableNotificationBell?: boolean;
 }
 export declare function ChattyChatView(props: ChattyChatViewProps): React.JSX.Element;

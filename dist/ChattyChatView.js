@@ -122,9 +122,9 @@ export function ChattyChatView(props) {
           {theme?.voice_enabled ? (<TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
               <Text style={{ fontSize: 16 }}>📞</Text>
             </TouchableOpacity>) : null}
-          <TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
-            <Text style={{ fontSize: 16 }}>🔔</Text>
-          </TouchableOpacity>
+          {props.enableNotificationBell !== false ? (<TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
+              <Text style={{ fontSize: 16 }}>🔔</Text>
+            </TouchableOpacity>) : null}
           <TouchableOpacity style={styles.headerActionButton} onPress={() => void clearChat()}>
             <Text style={{ fontSize: 16 }}>↺</Text>
           </TouchableOpacity>

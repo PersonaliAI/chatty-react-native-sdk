@@ -125,6 +125,7 @@ this release; color, radius, and header/bubble treatment carry most of a design'
   onMessage={(message) => void}
   onVoiceCallPress={() => void}
   onNotificationBellPress={() => void}
+  enableNotificationBell={boolean}  // optional, defaults to true — see Permissions
 />
 ```
 
@@ -148,6 +149,7 @@ The button color follows the active design's accent automatically — same as we
   onNotificationBellPress={() => void}  // optional, header notification-bell button — see Notes
   onClose={() => void}                // optional, renders a header close (✕) button.
                                        // ChattyLauncher passes this for you.
+  enableNotificationBell={boolean}    // optional, defaults to true — see Permissions
 />
 ```
 
@@ -175,6 +177,32 @@ send/sendImage/clearChat actions — with no UI attached, for apps that want to 
 layout.
 
 ### Notes
+
+<details open>
+<summary><strong id="permissions">Permissions — what this SDK requests, and how to opt out</strong></summary>
+
+<br>
+
+This SDK requests exactly one permission itself, and only in direct response to a button tap —
+never on load, never speculatively:
+
+| Permission | Risk | Used for | Requested when |
+|---|---|---|---|
+| `POST_NOTIFICATIONS` (Android 13+) | Runtime-gated | Header bell button → local notification-permission ask | User taps the bell, only if `enableNotificationBell` (default `true`) |
+
+Set `enableNotificationBell={false}` to hide the bell button entirely — the SDK then never calls
+`PermissionsAndroid.request` at all, so your app fully controls if/when/how notification
+permission is ever requested. Your app remains free to request it itself, on its own schedule,
+for its own purposes.
+
+**Camera, photo library, and microphone are never requested by this SDK at all** — as noted
+above, `onCameraPress` / `onPhotoLibraryPress` / `onMicPress` are plain callbacks; your app
+supplies its own picker/recorder package (`expo-image-picker`, `react-native-image-picker`,
+`expo-av`, etc.) and that package's own permission flow runs entirely under your control. This
+SDK adds no `CAMERA`/`RECORD_AUDIO`/photo-library manifest entries or Info.plist keys of its own —
+whatever picker/recorder you choose documents what it needs.
+
+</details>
 
 <details open>
 <summary><strong>Security — <code>bot_id</code> and domain restriction</strong></summary>
