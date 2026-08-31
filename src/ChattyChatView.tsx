@@ -18,18 +18,11 @@ import {
 } from "react-native";
 import { ChattyMessage, useChattyChat, UseChattyChatOptions } from "./useChattyChat";
 import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyBubbleRadii, ChattyDesignTokens } from "./designTokens";
+import { ChattyEmojiPicker } from "./ChattyEmojiPicker";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const CHATTY_EMOJIS = [
-  "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🙂", "🙃", "😉", "😊", "😇",
-  "🥰", "😍", "🤩", "😘", "😋", "😛", "🤪", "😜", "🤔", "🤨", "😐", "😑",
-  "😶", "🙄", "😏", "😒", "😬", "🙁", "😢", "😭", "😤", "😡", "🥳", "😴",
-  "🤗", "🤝", "👍", "👎", "👏", "🙌", "🙏", "💪", "👋", "✌️", "🤞", "❤️",
-  "🔥", "✨", "🎉", "🎊", "⭐", "💯", "✅", "❌", "❓", "❗", "💬", "👀",
-];
 
 export interface ChattyChatViewProps extends UseChattyChatOptions {
   /** Called once theme/config has loaded and the chat is ready to use. */
@@ -260,15 +253,7 @@ export function ChattyChatView(props: ChattyChatViewProps) {
       {/* Bordered rounded-16 bar with the input on top and an icon row
           (emoji + attach + mic + send) below, matching .chat-input-bar on web. */}
       <View style={[styles.composer, { borderColor: withAlpha(t.headerText, 0.12) }]}>
-        {showEmojiPicker && (
-          <View style={styles.emojiGrid}>
-            {CHATTY_EMOJIS.map((emoji, i) => (
-              <TouchableOpacity key={i} style={styles.emojiCell} onPress={() => setInput((v) => v + emoji)}>
-                <Text style={{ fontSize: 18 }}>{emoji}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        {showEmojiPicker && <ChattyEmojiPicker onPick={(emoji) => setInput((v) => v + emoji)} />}
         {showAttachMenu && (
           <View style={styles.attachMenu}>
             <AttachMenuOption
@@ -540,28 +525,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 6,
-  },
-  emojiGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    maxHeight: 160,
-    marginBottom: 8,
-    padding: 6,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  emojiCell: {
-    width: "12.5%",
-    aspectRatio: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   attachMenu: {
     flexDirection: "row",

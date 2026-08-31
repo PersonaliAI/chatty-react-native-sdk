@@ -27,7 +27,7 @@ avatar, and composer with real `View`/`Text`/`FlatList` components — no `WebVi
 | **No WebView, anywhere** | Every bubble, avatar, and the composer are real RN components — no iframe, no JS bridge, no WebView memory/perf overhead. |
 | **Matches your dashboard automatically** | Fetches the bot's theme and renders with the exact colors, corner radii, and launcher shape chosen in the dashboard — no manual styling. |
 | **Three integration shapes** | A floating [`ChattyLauncher`](#chattylauncher), an embedded [`ChattyChatView`](#chattychatview), or the headless [`useChattyChat`](#usechattychat-headless) hook. |
-| **A real composer, not a stub** | Emoji picker and an animated attach menu, built in — camera/photo/mic wire up to whatever picker your app already uses. |
+| **A real composer, not a stub** | Full-Unicode emoji picker (search + categories, ~1,850 emoji) and an animated attach menu, built in — camera/photo/mic wire up to whatever picker your app already uses. |
 | **Works with bare RN and Expo** | No native linking required beyond `@react-native-async-storage/async-storage`, which most apps already have. |
 
 ## Install
