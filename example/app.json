@@ -14,7 +14,15 @@
       "bundleIdentifier": "com.personaliai.chatty.example"
     },
     "android": {
-      "package": "com.personaliai.chatty.example"
+      "package": "com.personaliai.chatty.example",
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro"

@@ -61,7 +61,33 @@ export default function App() {
 }
 ```
 
-**Embedded full-screen chat** — place it directly in your own navigation, e.g. as a "Support" screen:
+**Script Method (WebView Embed — 100% web widget parity)** — loads the exact production widget served at `/embed/{botId}` with pixel-for-pixel visual and feature parity, including client-side voice messages, file attachments, AI search, and CSAT:
+
+```tsx
+import { ChattyEmbedView } from "@personaliai/react-native";
+
+function SupportScreen() {
+  return (
+    <ChattyEmbedView
+      botId="YOUR_BOT_ID"
+      onReady={() => console.log("Chat ready")}
+      onMessage={() => console.log("New message")}
+      onClose={() => navigation.goBack()}
+      onRequestNotificationPermission={(botName) => {
+        // Request POST_NOTIFICATIONS contextually (Android 13+ / iOS)
+      }}
+      onMicPermissionNeeded={() => {
+        // Request RECORD_AUDIO permission contextually when user taps the mic
+      }}
+      onLocationPermissionNeeded={() => {
+        // Request location permission contextually when user selects "Location"
+      }}
+    />
+  );
+}
+```
+
+**Native Components Chat** — renders with 100% native React Native components (`FlatList`, `View`, `Text`, `ChattyMarkdown`):
 
 ```tsx
 import { ChattyChatView } from "@personaliai/react-native";
@@ -155,6 +181,37 @@ The button color follows the active design's accent automatically — same as we
 />
 ```
 
+### `ChattyEmbedView` (Script Method)
+
+The official web widget hosted in a React Native `WebView`. Guaranteed pixel-for-pixel and feature-for-feature parity with the web widget, with automatic permission reflection, alert suppression, and OEM font scale isolation:
+
+```tsx
+<ChattyEmbedView
+  botId={string}
+  baseUrl={string}                    // optional, defaults to https://chatty.personaliai.com
+  onReady={() => void}                // optional, fired when web widget finishes loading
+  onMessage={() => void}              // optional, fired on every assistant reply
+  onClose={() => void}                // optional, fired when user closes the widget / CSAT
+  onRequestNotificationPermission={(botName) => void}  // optional, fired on notification bell tap
+  onMicPermissionNeeded={() => void}  // optional, fired on mic tap if RECORD_AUDIO not granted
+  onLocationPermissionNeeded={() => void} // optional, fired on location attach if not granted
+/>
+```
+
+### `ChattyMarkdown`
+
+Real CommonMark + GFM (tables, strikethrough, blockquotes, code blocks with copy) + LaTeX equation support (`$inline$` and `$$block$$`), matching web widget's feature set. Used automatically by `ChattyChatView` and available standalone:
+
+```tsx
+import { ChattyMarkdown } from "@personaliai/react-native";
+
+<ChattyMarkdown
+  text="Solve $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$ for $x$."
+  color="#111827"
+  fontSize={13}
+/>
+```
+
 > [!NOTE]
 > This SDK renders the composer's emoji picker and attach/mic UI (with layout animation), but it
 > deliberately doesn't bundle a camera, photo-library, document-picker, geolocation, or
@@ -188,24 +245,40 @@ layout.
 
 <br>
 
-This SDK requests exactly one permission itself, and only in direct response to a button tap —
-never on load, never speculatively:
+This SDK strictly adheres to the **"Reflect, Never Request"** contract:
 
-| Permission | Risk | Used for | Requested when |
+| Feature | Android Permission | iOS Info.plist Key | Callback |
 |---|---|---|---|
-| `POST_NOTIFICATIONS` (Android 13+) | Runtime-gated | Header bell button → local notification-permission ask | User taps the bell, only if `enableNotificationBell` (default `true`) |
+| **Voice Notes (`getUserMedia`)** | `android.permission.RECORD_AUDIO`<br>`android.permission.MODIFY_AUDIO_SETTINGS` | `NSMicrophoneUsageDescription` | `onMicPermissionNeeded` |
+| **Location Share (`geolocation`)** | `android.permission.ACCESS_COARSE_LOCATION`<br>`android.permission.ACCESS_FINE_LOCATION` | `NSLocationWhenInUseUsageDescription` | `onLocationPermissionNeeded` |
+| **Notifications** | `android.permission.POST_NOTIFICATIONS` | N/A (UserNotifications API) | `onRequestNotificationPermission` |
 
-Set `enableNotificationBell={false}` to hide the bell button entirely — the SDK then never calls
-`PermissionsAndroid.request` at all, so your app fully controls if/when/how notification
-permission is ever requested. Your app remains free to request it itself, on its own schedule,
-for its own purposes.
+In `ChattyEmbedView`, the SDK checks permissions read-only and reflects the status to the web widget. If a user taps the mic or location attach without permissions, `onMicPermissionNeeded` or `onLocationPermissionNeeded` fires so you can present your own rationale and request the permission. Once granted, returning to the view or subsequent taps immediately succeed.
 
-**Camera, photo library, and microphone are never requested by this SDK at all** — as noted
-above, `onCameraPress` / `onPhotoLibraryPress` / `onMicPress` are plain callbacks; your app
-supplies its own picker/recorder package (`expo-image-picker`, `react-native-image-picker`,
-`expo-av`, etc.) and that package's own permission flow runs entirely under your control. This
-SDK adds no `CAMERA`/`RECORD_AUDIO`/photo-library manifest entries or Info.plist keys of its own —
-whatever picker/recorder you choose documents what it needs.
+#### Android Setup (`android/app/src/main/AndroidManifest.xml`)
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+</manifest>
+```
+
+#### iOS Setup (`ios/Podfile` / `Info.plist`)
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>We need access to your microphone to record voice messages for support.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>We need your location to share with support.</string>
+<key>NSCameraUsageDescription</key>
+<string>We need access to your camera to attach photos.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>We need access to your photo library to attach photos.</string>
+```
 
 </details>
 

@@ -1,7 +1,7 @@
 {
   "name": "@personaliai/react-native",
   "version": "1.1.0",
-  "description": "Official React Native SDK for Chatty AI chatbots — native components, no WebView",
+  "description": "Official React Native SDK for Chatty AI chatbots — loads the web widget in a WebView for guaranteed parity, with native components as an alternative",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -33,29 +33,39 @@
   "author": "PersonaliAI",
   "license": "MIT",
   "peerDependencies": {
+    "@livekit/react-native": ">=2.0.0",
+    "@livekit/react-native-webrtc": ">=125.0.0",
     "@react-native-async-storage/async-storage": ">=1.19",
+    "@react-native-community/netinfo": ">=11.0.0",
+    "livekit-client": ">=2.0.0",
     "react": ">=18",
     "react-native": ">=0.72",
-    "livekit-client": ">=2.0.0",
-    "@livekit/react-native": ">=2.0.0",
-    "@livekit/react-native-webrtc": ">=125.0.0"
+    "react-native-webview": ">=13.0.0"
   },
   "peerDependenciesMeta": {
-    "livekit-client": { "optional": true },
-    "@livekit/react-native": { "optional": true },
-    "@livekit/react-native-webrtc": { "optional": true }
+    "livekit-client": {
+      "optional": true
+    },
+    "@livekit/react-native": {
+      "optional": true
+    },
+    "@livekit/react-native-webrtc": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@livekit/react-native": "^2.12.0",
+    "@livekit/react-native-webrtc": "^144.1.2",
     "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-community/netinfo": "^12.0.1",
     "@types/jest": "^30.0.0",
     "@types/react": "^18.3.31",
     "@types/react-test-renderer": "^18.3.1",
     "jest": "^30.4.2",
     "livekit-client": "^2.22.1",
-    "@livekit/react-native": "^2.12.0",
-    "@livekit/react-native-webrtc": "^144.1.2",
     "react": "^18.2.0",
     "react-native": "^0.74.7",
+    "react-native-webview": "^14.0.1",
     "react-test-renderer": "18.2.0",
     "ts-jest": "^29.4.12",
     "typescript": "^5.9.3"

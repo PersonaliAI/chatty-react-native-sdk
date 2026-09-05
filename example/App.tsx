@@ -1,19 +1,23 @@
 import React, { useState } from "react";
-import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, Platform, PermissionsAndroid } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { ChattyChatView, ChattyLauncher } from "@personaliai/react-native";
+import { ChattyEmbedView, ChattyLauncher } from "@personaliai/react-native";
 
 // Swap this for your own bot id — find it in the Chatty dashboard under
 // Embed & Integrate → React Native SDK. This one is the public demo bot.
 const DEMO_BOT_ID = "c8fa19c8-dd25-43a3-9c55-e8099e6f532e";
 
-// The SDK's voice-call/notification-bell buttons only fire a callback — it doesn't bundle a
-// call implementation or push registration itself (see ChattyChatView's doc comments). These
-// alerts just prove the buttons are wired up; a real app would launch its own LiveKit call
-// screen / notification opt-in flow here instead.
-const onVoiceCallPress = () => Alert.alert("Voice call tapped", "Wire up your own call UI here");
-const onNotificationBellPress = () =>
-  Alert.alert("Notification permission resolved", "Register for push here");
+// ChattyEmbedView never requests POST_NOTIFICATIONS itself — this callback fires only when the
+// visitor taps "enable notifications" inside the widget (contextual, not upfront at launch),
+// and it's this app's job to actually request the permission (see ChattyEmbedView's
+// onRequestNotificationPermission doc comment). Mic and location don't need an equivalent
+// handler here: react-native-webview's own WebChromeClient already reflects + asks the OS
+// dialog itself, contextually, right when the page calls getUserMedia()/geolocation.
+const onRequestNotificationPermission = () => {
+  if (Platform.OS === "android" && Platform.Version >= 33) {
+    PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+  }
+};
 
 export default function App() {
   const [fullScreen, setFullScreen] = useState(false);
@@ -21,10 +25,9 @@ export default function App() {
   if (fullScreen) {
     return (
       <SafeAreaView style={styles.flex}>
-        <ChattyChatView
+        <ChattyEmbedView
           botId={DEMO_BOT_ID}
-          onVoiceCallPress={onVoiceCallPress}
-          onNotificationBellPress={onNotificationBellPress}
+          onRequestNotificationPermission={onRequestNotificationPermission}
           onClose={() => setFullScreen(false)}
         />
         <StatusBar style="auto" />
@@ -48,8 +51,7 @@ export default function App() {
           selected for this bot in the dashboard; no manual color needed. */}
       <ChattyLauncher
         botId={DEMO_BOT_ID}
-        onVoiceCallPress={onVoiceCallPress}
-        onNotificationBellPress={onNotificationBellPress}
+        onRequestNotificationPermission={onRequestNotificationPermission}
       />
       <StatusBar style="auto" />
     </SafeAreaView>

@@ -1,5 +1,6 @@
 import React from "react";
 import { ChattyMessage, UseChattyChatOptions } from "./useChattyChat";
+import { ChattyMarkdown } from "./ChattyMarkdown";
 export interface ChattyChatViewProps extends UseChattyChatOptions {
     /** Called once theme/config has loaded and the chat is ready to use. */
     onReady?: () => void;
@@ -34,23 +35,31 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
      * dashboard has voice enabled). This SDK doesn't bundle a voice-call implementation
      * (that's a separate LiveKit integration) — wire this up if your app has one. */
     onVoiceCallPress?: () => void;
-    /** Called when the header's notification-bell button is tapped, after the OS notification
-     * permission has been requested on Android (PermissionsAndroid, built into RN core — no
-     * extra dependency). There's no cross-platform JS API for this on iOS; request it yourself
-     * (e.g. via expo-notifications or your own native module) before/inside this callback.
-     * Native apps still need their own push infrastructure (FCM/APNs) to actually *deliver* a
-     * notification while backgrounded — this SDK only handles the permission ask. */
+    /** Called when the header's notification-bell button is tapped. This SDK never calls
+     * PermissionsAndroid.request (or any permission prompt) itself — it only reflects
+     * POST_NOTIFICATIONS' already-granted state (via PermissionsAndroid.check on Android 13+,
+     * re-checked on app foreground) to decide whether to show the bell at all. Request the
+     * permission yourself (e.g. via expo-notifications, your own native module, or
+     * PermissionsAndroid.request) wherever your app's onboarding flow calls for it — the bell
+     * then appears once granted. Native apps still need their own push infrastructure
+     * (FCM/APNs) to actually *deliver* a notification while backgrounded. */
     onNotificationBellPress?: () => void;
     /** Renders a close (✕) button in the header when provided — pass this instead of drawing
      * your own close bar above ChattyChatView (e.g. in a modal wrapper), so there's one header,
      * not two stacked ones. ChattyLauncher already does this for you. */
     onClose?: () => void;
-    /** Shows the header's notification-bell button and, on Android, requests
-     * POST_NOTIFICATIONS (a runtime permission on API 33+) when tapped. Set `false` to hide the
-     * button entirely — the SDK then never calls PermissionsAndroid.request at all, so your app
-     * fully controls if/when/how notification permission is ever requested. Default `true`.
+    /** Set `false` to force-hide the header's notification-bell button regardless of permission
+     * state. Left at the default `true`, the bell only shows once POST_NOTIFICATIONS is already
+     * granted (checked read-only, never requested by this SDK — see onNotificationBellPress).
      * Camera/photo/mic aren't listed here because this SDK never requests those permissions
-     * itself — see onCameraPress/onPhotoLibraryPress/onMicPress above. */
+     * itself either — see onCameraPress/onPhotoLibraryPress/onMicPress above. */
     enableNotificationBell?: boolean;
 }
+/** Mirrors standalone.tsx's LAUNCHER_ICONS map + its MessageCircle fallback:
+ * logo(no logoUrl)/custom(no avatarUrl)/anything unmatched falls back to a
+ * chat-bubble glyph, NOT a robot — web only shows the robot for avatar_icon
+ * === "bot" specifically. */
+export declare function avatarGlyph(avatarIcon: string | null | undefined): string;
 export declare function ChattyChatView(props: ChattyChatViewProps): React.JSX.Element;
+/** Backward compatibility alias for ChattyMarkdown. */
+export declare const SimpleMarkdown: typeof ChattyMarkdown;

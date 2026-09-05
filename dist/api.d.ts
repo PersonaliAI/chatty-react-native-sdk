@@ -1,4 +1,32 @@
 export declare const DEFAULT_BASE_URL = "https://api.chatty.personaliai.com";
+/** Per-section color overrides from the dashboard's color_scheme editor —
+ * mirrors EmbedClient.tsx's own shape (each section optional, hex strings). */
+export interface ChattyColorScheme {
+    header?: {
+        bg?: string;
+        text?: string;
+    };
+    botBubble?: {
+        bg?: string;
+        text?: string;
+    };
+    userBubble?: {
+        bg?: string;
+        text?: string;
+    };
+    inputBar?: {
+        bg?: string;
+        text?: string;
+    };
+    sendButton?: {
+        bg?: string;
+        text?: string;
+    };
+    launcher?: {
+        bg?: string;
+        text?: string;
+    };
+}
 export interface ChattyTheme {
     name?: string;
     primary_color?: string;
@@ -12,6 +40,12 @@ export interface ChattyTheme {
     avatar_icon?: string;
     avatar_url?: string;
     voice_enabled?: boolean;
+    /** Hides the "Powered by Chatty" footer when true. */
+    hide_branding?: boolean;
+    /** When true, assistant bubbles show a small "AI"/"HUMAN AGENT" label above
+     * the text (poll-sourced messages are always human — see useChattyChat). */
+    show_sender_tag?: boolean;
+    color_scheme?: ChattyColorScheme;
 }
 export interface ChattyChatResponse {
     reply: string;

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, View, Platform } from "react-native";
-import { ChattyChatView } from "./ChattyChatView";
+import { TouchableOpacity, Text, Image, StyleSheet, Modal, SafeAreaView, View, Platform } from "react-native";
+import { avatarGlyph } from "./ChattyChatView";
+import { ChattyEmbedView } from "./ChattyEmbedView";
 import { ChattyClient } from "./api";
 import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLauncherRadii } from "./designTokens";
 const FALLBACK_DESIGN = "minimal";
 /**
- * Floating launcher button + full-screen modal chat panel — the native-SDK
- * equivalent of widget.js's launcher button + iframe panel. 60x60 (widget.js's
- * actual size), color/shadow follow the selected design's own LAUNCHER_STYLES
- * entry — NOT always the same as the user-bubble color (e.g. dark-sleek's
- * launcher is dark, not its teal accent; neubrutalism's is black, not pink).
+ * Floating launcher button + full-screen modal chat panel (the actual web
+ * widget page, loaded via ChattyEmbedView — see that file for why). 60x60
+ * (widget.js's actual size), color/shadow follow the selected design's own
+ * LAUNCHER_STYLES entry — NOT always the same as the user-bubble color (e.g.
+ * dark-sleek's launcher is dark, not its teal accent; neubrutalism's is
+ * black, not pink).
  */
 export function ChattyLauncher(props) {
     const { position = "right", ...chatProps } = props;
@@ -17,15 +19,24 @@ export function ChattyLauncher(props) {
     const [unread, setUnread] = useState(0);
     const [designId, setDesignId] = useState(FALLBACK_DESIGN);
     const [rawWidgetStyle, setRawWidgetStyle] = useState(undefined);
+    const [avatarIcon, setAvatarIcon] = useState(undefined);
+    const [avatarUrl, setAvatarUrl] = useState(undefined);
+    const [launcherColorScheme, setLauncherColorScheme] = useState(undefined);
     useEffect(() => {
         let cancelled = false;
-        new ChattyClient({ botId: props.botId, baseUrl: props.baseUrl, host: props.host })
+        // Note: props.baseUrl here means the embed *page's* host (for
+        // ChattyEmbedView below) — this fetch is only for launcher-button
+        // styling and always hits the default widget API host regardless.
+        new ChattyClient({ botId: props.botId })
             .getTheme()
             .then((t) => {
             if (cancelled)
                 return;
             setDesignId(chattyNormalizeWidgetStyle(t.widget_style));
             setRawWidgetStyle(t.widget_style);
+            setAvatarIcon(t.avatar_icon);
+            setAvatarUrl(t.avatar_url);
+            setLauncherColorScheme(t.color_scheme?.launcher);
         })
             .catch(() => { });
         return () => {
@@ -33,7 +44,14 @@ export function ChattyLauncher(props) {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [props.botId]);
-    const tokens = CHATTY_DESIGN_TOKENS[designId] ?? CHATTY_DESIGN_TOKENS[FALLBACK_DESIGN];
+    const baseTokens = CHATTY_DESIGN_TOKENS[designId] ?? CHATTY_DESIGN_TOKENS[FALLBACK_DESIGN];
+    // Dashboard's color_scheme.launcher override, same as standalone.tsx's own
+    // launcherBg/launcherIconOverride handling.
+    const tokens = {
+        ...baseTokens,
+        launcherBg: launcherColorScheme?.bg ?? baseTokens.launcherBg,
+    };
+    const launcherIconColor = launcherColorScheme?.text;
     const launcherRadii = chattyLauncherRadii(rawWidgetStyle, 60, position);
     return (<>
       <TouchableOpacity style={[
@@ -48,20 +66,22 @@ export function ChattyLauncher(props) {
             setOpen(true);
             setUnread(0);
         }} activeOpacity={0.85}>
-        <Text style={styles.buttonIcon}>💬</Text>
+        {avatarIcon === "custom" && avatarUrl ? (<Image source={{ uri: avatarUrl }} style={styles.buttonIconImage}/>) : (<Text style={[styles.buttonIcon, launcherIconColor ? { color: launcherIconColor } : null]}>
+            {avatarGlyph(avatarIcon)}
+          </Text>)}
         {unread > 0 && (<View style={styles.badge}>
             <Text style={styles.badgeText}>{unread > 9 ? "9+" : unread}</Text>
           </View>)}
       </TouchableOpacity>
 
-      {/* Close lives in ChattyChatView's own header (onClose) — no separate close bar
-            drawn here, which used to stack a second, redundant header above it. */}
+      {/* Close is driven by the page's own header close button, via the
+            chatty:close bridge message — no separate close bar drawn here. */}
       <Modal visible={open} animationType="slide" presentationStyle={Platform.OS === "ios" ? "pageSheet" : undefined}>
         <SafeAreaView style={styles.modalSafeArea}>
-          <ChattyChatView {...chatProps} onMessage={(m) => {
+          <ChattyEmbedView {...chatProps} onMessage={() => {
             if (!open)
                 setUnread((u) => u + 1);
-            chatProps.onMessage?.(m);
+            chatProps.onMessage?.();
         }} onClose={() => setOpen(false)}/>
         </SafeAreaView>
       </Modal>
@@ -84,6 +104,7 @@ const styles = StyleSheet.create({
         zIndex: 999,
     },
     buttonIcon: { fontSize: 24 },
+    buttonIconImage: { width: 36, height: 36, borderRadius: 18 },
     badge: {
         position: "absolute",
         top: -4,

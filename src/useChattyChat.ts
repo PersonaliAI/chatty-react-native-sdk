@@ -152,9 +152,13 @@ export function useChattyChat(options: UseChattyChatOptions): UseChattyChatResul
           setMessages((prev) => {
             const newMsgs = [
               ...prev,
+              // Backend's /api/widget/poll is server-side filtered to
+              // sender="human" rows only (see chatty-backend's widget.py
+              // widget_poll) — every message that arrives here is a
+              // human-agent reply, never "agent" as a literal string.
               ...res.messages.map((m, i) => ({
                 id: `poll-${Date.now()}-${i}`,
-                role: (m.sender === "agent" ? "agent" : "assistant") as ChattyRole,
+                role: "agent" as ChattyRole,
                 text: m.content,
                 createdAt: m.created_at,
               })),

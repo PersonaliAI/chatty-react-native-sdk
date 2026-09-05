@@ -1,20 +1,26 @@
-import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Animated, LayoutAnimation, UIManager, PermissionsAndroid, } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Animated, LayoutAnimation, UIManager, PermissionsAndroid, AppState, } from "react-native";
 import { useChattyChat } from "./useChattyChat";
 import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyBubbleRadii } from "./designTokens";
 import { ChattyEmojiPicker } from "./ChattyEmojiPicker";
+import { ChattyMarkdown } from "./ChattyMarkdown";
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-/** bot/logo(no logoUrl)/custom(no avatarUrl) fall back to a generic chat
- * glyph; the rest map 1:1 to the dashboard's avatar_icon options. */
-function avatarGlyph(avatarIcon) {
+/** Mirrors standalone.tsx's LAUNCHER_ICONS map + its MessageCircle fallback:
+ * logo(no logoUrl)/custom(no avatarUrl)/anything unmatched falls back to a
+ * chat-bubble glyph, NOT a robot — web only shows the robot for avatar_icon
+ * === "bot" specifically. */
+export function avatarGlyph(avatarIcon) {
     switch (avatarIcon) {
-        case "headset": return "🎧";
+        case "bot": return "🤖";
+        case "headset":
+        case "headphones": return "🎧";
         case "sparkles": return "✨";
-        case "message": return "💬";
+        case "message":
+        case "chat": return "💬";
         case "user": return "👤";
-        default: return "🤖";
+        default: return "💬";
     }
 }
 function sendGlyph(style) {
@@ -33,7 +39,24 @@ export function ChattyChatView(props) {
     const [showAttachMenu, setShowAttachMenu] = useState(false);
     const listRef = useRef(null);
     const designId = chattyNormalizeWidgetStyle(theme?.widget_style);
-    const t = CHATTY_DESIGN_TOKENS[designId];
+    // Per-section dashboard overrides layered on top of the design's own
+    // palette — mirrors chatty-android-sdk/chatty_flutter's color_scheme merge.
+    const t = useMemo(() => {
+        const base = CHATTY_DESIGN_TOKENS[designId];
+        const cs = theme?.color_scheme;
+        if (!cs)
+            return base;
+        return {
+            ...base,
+            headerBg: cs.header?.bg ?? base.headerBg,
+            headerText: cs.header?.text ?? base.headerText,
+            botBubbleBg: cs.botBubble?.bg ?? base.botBubbleBg,
+            botBubbleText: cs.botBubble?.text ?? base.botBubbleText,
+            userBubbleBg: cs.userBubble?.bg ?? base.userBubbleBg,
+            userBubbleText: cs.userBubble?.text ?? base.userBubbleText,
+            launcherBg: cs.launcher?.bg ?? base.launcherBg,
+        };
+    }, [designId, theme?.color_scheme]);
     // Every design's send button matches its user-bubble background on web —
     // reuse that as the "accent" for the send button and loading spinners.
     const accent = t.userBubbleBg;
@@ -77,18 +100,28 @@ export function ChattyChatView(props) {
         setShowEmojiPicker(false);
         setShowAttachMenu((v) => !v);
     };
-    // POST_NOTIFICATIONS only exists as a runtime permission on Android 13+ (API 33) —
-    // PermissionsAndroid.request no-ops correctly on older versions. There's no equivalent
-    // built into React Native core for iOS; see the onNotificationBellPress doc comment.
-    const handleBellPress = async () => {
-        if (Platform.OS === "android" && Platform.Version >= 33) {
-            try {
-                await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-            }
-            catch {
-                // ignore — fall through to the callback either way
-            }
-        }
+    // This SDK never calls PermissionsAndroid.request — only .check (read-only) — and hides
+    // the bell entirely until POST_NOTIFICATIONS is granted, the same "reflect, never request"
+    // contract as chatty-android-sdk/chatty_flutter's mic button. POST_NOTIFICATIONS only exists
+    // as a runtime permission on Android 13+ (API 33); older Android and iOS (no built-in RN
+    // permission-check API for notifications) always report granted so the bell just shows.
+    const [notifGranted, setNotifGranted] = useState(!(Platform.OS === "android" && Platform.Version >= 33));
+    useEffect(() => {
+        if (!(Platform.OS === "android" && Platform.Version >= 33))
+            return;
+        const check = () => {
+            PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
+                .then(setNotifGranted)
+                .catch(() => { });
+        };
+        check();
+        const sub = AppState.addEventListener("change", (state) => {
+            if (state === "active")
+                check();
+        });
+        return () => sub.remove();
+    }, []);
+    const handleBellPress = () => {
         props.onNotificationBellPress?.();
     };
     if (!ready) {
@@ -116,7 +149,7 @@ export function ChattyChatView(props) {
           {theme?.voice_enabled ? (<TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
               <Text style={{ fontSize: 16 }}>📞</Text>
             </TouchableOpacity>) : null}
-          {props.enableNotificationBell !== false ? (<TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
+          {props.enableNotificationBell !== false && notifGranted ? (<TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
               <Text style={{ fontSize: 16 }}>🔔</Text>
             </TouchableOpacity>) : null}
           <TouchableOpacity style={styles.headerActionButton} onPress={() => void clearChat()}>
@@ -128,7 +161,7 @@ export function ChattyChatView(props) {
         </View>
       </View>
 
-      <FlatList ref={listRef} data={messages} keyExtractor={(m) => m.id} contentContainerStyle={styles.messageList} renderItem={({ item }) => (<Bubble message={item} t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url}/>)} ListFooterComponent={sending ? <TypingIndicator t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url}/> : null}/>
+      <FlatList ref={listRef} data={messages} keyExtractor={(m) => m.id} contentContainerStyle={styles.messageList} renderItem={({ item }) => (<Bubble message={item} t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url} showSenderTag={theme?.show_sender_tag}/>)} ListFooterComponent={sending ? <TypingIndicator t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url}/> : null}/>
 
       {theme?.conversation_starters && theme.conversation_starters.length > 0 && messages.length <= 1 && (<View style={styles.starters}>
           {theme.conversation_starters.map((s, i) => (<TouchableOpacity key={i} style={[styles.starterChip, { borderColor: withAlpha(accent, 0.35) }]} onPress={() => handleStarter(s)}>
@@ -183,6 +216,11 @@ export function ChattyChatView(props) {
           </View>
           <SendButton style={theme?.send_button_style} accent={accent} textColor={t.userBubbleText} enabled={!!input.trim() && !sending} onPress={handleSend}/>
         </View>
+        {!theme?.hide_branding ? (<TouchableOpacity onPress={() => Linking.openURL("https://chatty.personaliai.com")}>
+            <Text style={[styles.brandingFooter, { color: withAlpha(t.containerBg === "#ffffff" ? "#111827" : t.botBubbleText, 0.4) }]}>
+              Powered by <Text style={{ fontWeight: "700" }}>Chatty</Text>
+            </Text>
+          </TouchableOpacity>) : null}
       </View>
     </KeyboardAvoidingView>);
 }
@@ -227,19 +265,26 @@ function SendButton({ style, accent, textColor, enabled, onPress, }) {
         </View>) : (<Text style={[styles.sendButtonText, { color: textColor }]}>{sendGlyph(style)}</Text>)}
     </TouchableOpacity>);
 }
-function Bubble({ message, t, avatarIcon, avatarUrl, }) {
+function Bubble({ message, t, avatarIcon, avatarUrl, showSenderTag, }) {
     const isUser = message.role === "user";
     const radius = isUser ? t.userBubbleRadius : t.botBubbleRadius;
     return (<View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant]}>
       <View style={styles.bubbleGroup}>
         {!isUser && <BotAvatar t={t} avatarIcon={avatarIcon} avatarUrl={avatarUrl}/>}
-        <View style={[
+        <View style={{ flexShrink: 1 }}>
+          {/* Matches EmbedClient.tsx's own tiny uppercase sender label: 9sp,
+            semibold, tracked-out, assistant/agent only. */}
+          {!isUser && showSenderTag && (<Text style={[styles.senderTag, { color: withAlpha(t.botBubbleText, 0.5) }]}>
+              {message.role === "agent" ? "HUMAN AGENT" : "AI"}
+            </Text>)}
+          <View style={[
             styles.bubble,
             chattyBubbleRadii(radius, isUser),
             { backgroundColor: isUser ? t.userBubbleBg : t.botBubbleBg },
         ]}>
-          {message.fileUrl ? <Image source={{ uri: message.fileUrl }} style={styles.attachedImage}/> : null}
-          {message.text ? (isUser ? (<Text style={[styles.bubbleTextUser, { color: t.userBubbleText }]}>{message.text}</Text>) : (<SimpleMarkdown text={message.text} style={[styles.bubbleTextAssistant, { color: t.botBubbleText }]}/>)) : null}
+            {message.fileUrl ? <Image source={{ uri: message.fileUrl }} style={styles.attachedImage}/> : null}
+            {message.text ? (isUser ? (<Text style={[styles.bubbleTextUser, { color: t.userBubbleText }]}>{message.text}</Text>) : (<ChattyMarkdown text={message.text} color={t.botBubbleText} fontSize={13} style={styles.bubbleTextAssistant}/>)) : null}
+          </View>
         </View>
       </View>
     </View>);
@@ -254,43 +299,8 @@ function TypingIndicator({ t, avatarIcon, avatarUrl, }) {
       </View>
     </View>);
 }
-function SimpleMarkdown({ text, style }) {
-    const lines = text.split('\n');
-    return (<View>
-      {lines.map((line, i) => {
-            let isList = false;
-            if (line.startsWith('- ')) {
-                isList = true;
-                line = '  • ' + line.slice(2);
-            }
-            let isHeading = false;
-            if (line.startsWith('### ')) {
-                isHeading = true;
-                line = line.slice(4);
-            }
-            const parts = line.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))/g);
-            const textStyle = isHeading ? { fontWeight: 'bold', fontSize: 16 } : undefined;
-            return (<Text key={i} style={[style, textStyle]}>
-            {parts.map((part, j) => {
-                    if (part.startsWith('**') && part.endsWith('**')) {
-                        return <Text key={j} style={{ fontWeight: 'bold' }}>{part.slice(2, -2)}</Text>;
-                    }
-                    if (part.startsWith('*') && part.endsWith('*')) {
-                        return <Text key={j} style={{ fontStyle: 'italic' }}>{part.slice(1, -1)}</Text>;
-                    }
-                    if (part.startsWith('`') && part.endsWith('`')) {
-                        return <Text key={j} style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', backgroundColor: '#f0f0f0' }}>{part.slice(1, -1)}</Text>;
-                    }
-                    const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
-                    if (linkMatch) {
-                        return <Text key={j} style={{ color: '#007AFF', textDecorationLine: 'underline' }} onPress={() => Linking.openURL(linkMatch[2])}>{linkMatch[1]}</Text>;
-                    }
-                    return <Text key={j}>{part}</Text>;
-                })}
-          </Text>);
-        })}
-    </View>);
-}
+/** Backward compatibility alias for ChattyMarkdown. */
+export const SimpleMarkdown = ChattyMarkdown;
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff" },
     center: { alignItems: "center", justifyContent: "center" },
@@ -312,6 +322,8 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 15, fontWeight: "600" },
     headerStatusRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
     headerStatus: { fontSize: 10 },
+    brandingFooter: { fontSize: 10, textAlign: "center", paddingTop: 6, paddingBottom: 2, fontVariant: ["small-caps"] },
+    senderTag: { fontSize: 9, fontWeight: "600", letterSpacing: 0.6, textTransform: "uppercase", paddingLeft: 2, paddingBottom: 2 },
     headerActions: { flexDirection: "row", gap: 2 },
     headerActionButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
     pulsingDot: { width: 6, height: 6, borderRadius: 3 },

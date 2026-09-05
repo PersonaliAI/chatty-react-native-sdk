@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -15,10 +15,12 @@ import {
   LayoutAnimation,
   UIManager,
   PermissionsAndroid,
+  AppState,
 } from "react-native";
 import { ChattyMessage, useChattyChat, UseChattyChatOptions } from "./useChattyChat";
 import { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyBubbleRadii, ChattyDesignTokens } from "./designTokens";
 import { ChattyEmojiPicker } from "./ChattyEmojiPicker";
+import { ChattyMarkdown } from "./ChattyMarkdown";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -58,35 +60,41 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
    * dashboard has voice enabled). This SDK doesn't bundle a voice-call implementation
    * (that's a separate LiveKit integration) — wire this up if your app has one. */
   onVoiceCallPress?: () => void;
-  /** Called when the header's notification-bell button is tapped, after the OS notification
-   * permission has been requested on Android (PermissionsAndroid, built into RN core — no
-   * extra dependency). There's no cross-platform JS API for this on iOS; request it yourself
-   * (e.g. via expo-notifications or your own native module) before/inside this callback.
-   * Native apps still need their own push infrastructure (FCM/APNs) to actually *deliver* a
-   * notification while backgrounded — this SDK only handles the permission ask. */
+  /** Called when the header's notification-bell button is tapped. This SDK never calls
+   * PermissionsAndroid.request (or any permission prompt) itself — it only reflects
+   * POST_NOTIFICATIONS' already-granted state (via PermissionsAndroid.check on Android 13+,
+   * re-checked on app foreground) to decide whether to show the bell at all. Request the
+   * permission yourself (e.g. via expo-notifications, your own native module, or
+   * PermissionsAndroid.request) wherever your app's onboarding flow calls for it — the bell
+   * then appears once granted. Native apps still need their own push infrastructure
+   * (FCM/APNs) to actually *deliver* a notification while backgrounded. */
   onNotificationBellPress?: () => void;
   /** Renders a close (✕) button in the header when provided — pass this instead of drawing
    * your own close bar above ChattyChatView (e.g. in a modal wrapper), so there's one header,
    * not two stacked ones. ChattyLauncher already does this for you. */
   onClose?: () => void;
-  /** Shows the header's notification-bell button and, on Android, requests
-   * POST_NOTIFICATIONS (a runtime permission on API 33+) when tapped. Set `false` to hide the
-   * button entirely — the SDK then never calls PermissionsAndroid.request at all, so your app
-   * fully controls if/when/how notification permission is ever requested. Default `true`.
+  /** Set `false` to force-hide the header's notification-bell button regardless of permission
+   * state. Left at the default `true`, the bell only shows once POST_NOTIFICATIONS is already
+   * granted (checked read-only, never requested by this SDK — see onNotificationBellPress).
    * Camera/photo/mic aren't listed here because this SDK never requests those permissions
-   * itself — see onCameraPress/onPhotoLibraryPress/onMicPress above. */
+   * itself either — see onCameraPress/onPhotoLibraryPress/onMicPress above. */
   enableNotificationBell?: boolean;
 }
 
-/** bot/logo(no logoUrl)/custom(no avatarUrl) fall back to a generic chat
- * glyph; the rest map 1:1 to the dashboard's avatar_icon options. */
-function avatarGlyph(avatarIcon: string | null | undefined): string {
+/** Mirrors standalone.tsx's LAUNCHER_ICONS map + its MessageCircle fallback:
+ * logo(no logoUrl)/custom(no avatarUrl)/anything unmatched falls back to a
+ * chat-bubble glyph, NOT a robot — web only shows the robot for avatar_icon
+ * === "bot" specifically. */
+export function avatarGlyph(avatarIcon: string | null | undefined): string {
   switch (avatarIcon) {
-    case "headset": return "🎧";
+    case "bot": return "🤖";
+    case "headset":
+    case "headphones": return "🎧";
     case "sparkles": return "✨";
-    case "message": return "💬";
+    case "message":
+    case "chat": return "💬";
     case "user": return "👤";
-    default: return "🤖";
+    default: return "💬";
   }
 }
 
@@ -108,7 +116,23 @@ export function ChattyChatView(props: ChattyChatViewProps) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const listRef = useRef<FlatList<ChattyMessage>>(null);
   const designId = chattyNormalizeWidgetStyle(theme?.widget_style);
-  const t = CHATTY_DESIGN_TOKENS[designId];
+  // Per-section dashboard overrides layered on top of the design's own
+  // palette — mirrors chatty-android-sdk/chatty_flutter's color_scheme merge.
+  const t = useMemo(() => {
+    const base = CHATTY_DESIGN_TOKENS[designId];
+    const cs = theme?.color_scheme;
+    if (!cs) return base;
+    return {
+      ...base,
+      headerBg: cs.header?.bg ?? base.headerBg,
+      headerText: cs.header?.text ?? base.headerText,
+      botBubbleBg: cs.botBubble?.bg ?? base.botBubbleBg,
+      botBubbleText: cs.botBubble?.text ?? base.botBubbleText,
+      userBubbleBg: cs.userBubble?.bg ?? base.userBubbleBg,
+      userBubbleText: cs.userBubble?.text ?? base.userBubbleText,
+      launcherBg: cs.launcher?.bg ?? base.launcherBg,
+    };
+  }, [designId, theme?.color_scheme]);
   // Every design's send button matches its user-bubble background on web —
   // reuse that as the "accent" for the send button and loading spinners.
   const accent = t.userBubbleBg;
@@ -155,17 +179,28 @@ export function ChattyChatView(props: ChattyChatViewProps) {
     setShowAttachMenu((v) => !v);
   };
 
-  // POST_NOTIFICATIONS only exists as a runtime permission on Android 13+ (API 33) —
-  // PermissionsAndroid.request no-ops correctly on older versions. There's no equivalent
-  // built into React Native core for iOS; see the onNotificationBellPress doc comment.
-  const handleBellPress = async () => {
-    if (Platform.OS === "android" && Platform.Version >= 33) {
-      try {
-        await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-      } catch {
-        // ignore — fall through to the callback either way
-      }
-    }
+  // This SDK never calls PermissionsAndroid.request — only .check (read-only) — and hides
+  // the bell entirely until POST_NOTIFICATIONS is granted, the same "reflect, never request"
+  // contract as chatty-android-sdk/chatty_flutter's mic button. POST_NOTIFICATIONS only exists
+  // as a runtime permission on Android 13+ (API 33); older Android and iOS (no built-in RN
+  // permission-check API for notifications) always report granted so the bell just shows.
+  const [notifGranted, setNotifGranted] = useState(
+    !(Platform.OS === "android" && Platform.Version >= 33),
+  );
+  useEffect(() => {
+    if (!(Platform.OS === "android" && Platform.Version >= 33)) return;
+    const check = () => {
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
+        .then(setNotifGranted)
+        .catch(() => {});
+    };
+    check();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") check();
+    });
+    return () => sub.remove();
+  }, []);
+  const handleBellPress = () => {
     props.onNotificationBellPress?.();
   };
 
@@ -208,7 +243,7 @@ export function ChattyChatView(props: ChattyChatViewProps) {
               <Text style={{ fontSize: 16 }}>📞</Text>
             </TouchableOpacity>
           ) : null}
-          {props.enableNotificationBell !== false ? (
+          {props.enableNotificationBell !== false && notifGranted ? (
             <TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
               <Text style={{ fontSize: 16 }}>🔔</Text>
             </TouchableOpacity>
@@ -230,7 +265,7 @@ export function ChattyChatView(props: ChattyChatViewProps) {
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.messageList}
         renderItem={({ item }) => (
-          <Bubble message={item} t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url} />
+          <Bubble message={item} t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url} showSenderTag={theme?.show_sender_tag} />
         )}
         ListFooterComponent={sending ? <TypingIndicator t={t} avatarIcon={theme?.avatar_icon} avatarUrl={theme?.avatar_url} /> : null}
       />
@@ -334,6 +369,13 @@ export function ChattyChatView(props: ChattyChatViewProps) {
             onPress={handleSend}
           />
         </View>
+        {!theme?.hide_branding ? (
+          <TouchableOpacity onPress={() => Linking.openURL("https://chatty.personaliai.com")}>
+            <Text style={[styles.brandingFooter, { color: withAlpha(t.containerBg === "#ffffff" ? "#111827" : t.botBubbleText, 0.4) }]}>
+              Powered by <Text style={{ fontWeight: "700" }}>Chatty</Text>
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -408,29 +450,38 @@ function SendButton({
 }
 
 function Bubble({
-  message, t, avatarIcon, avatarUrl,
-}: { message: ChattyMessage; t: ChattyDesignTokens; avatarIcon?: string | null; avatarUrl?: string | null }) {
+  message, t, avatarIcon, avatarUrl, showSenderTag,
+}: { message: ChattyMessage; t: ChattyDesignTokens; avatarIcon?: string | null; avatarUrl?: string | null; showSenderTag?: boolean }) {
   const isUser = message.role === "user";
   const radius = isUser ? t.userBubbleRadius : t.botBubbleRadius;
   return (
     <View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant]}>
       <View style={styles.bubbleGroup}>
         {!isUser && <BotAvatar t={t} avatarIcon={avatarIcon} avatarUrl={avatarUrl} />}
-        <View
-          style={[
-            styles.bubble,
-            chattyBubbleRadii(radius, isUser),
-            { backgroundColor: isUser ? t.userBubbleBg : t.botBubbleBg },
-          ]}
-        >
-          {message.fileUrl ? <Image source={{ uri: message.fileUrl }} style={styles.attachedImage} /> : null}
-          {message.text ? (
-            isUser ? (
-              <Text style={[styles.bubbleTextUser, { color: t.userBubbleText }]}>{message.text}</Text>
-            ) : (
-              <SimpleMarkdown text={message.text} style={[styles.bubbleTextAssistant, { color: t.botBubbleText }]} />
-            )
-          ) : null}
+        <View style={{ flexShrink: 1 }}>
+          {/* Matches EmbedClient.tsx's own tiny uppercase sender label: 9sp,
+              semibold, tracked-out, assistant/agent only. */}
+          {!isUser && showSenderTag && (
+            <Text style={[styles.senderTag, { color: withAlpha(t.botBubbleText, 0.5) }]}>
+              {message.role === "agent" ? "HUMAN AGENT" : "AI"}
+            </Text>
+          )}
+          <View
+            style={[
+              styles.bubble,
+              chattyBubbleRadii(radius, isUser),
+              { backgroundColor: isUser ? t.userBubbleBg : t.botBubbleBg },
+            ]}
+          >
+            {message.fileUrl ? <Image source={{ uri: message.fileUrl }} style={styles.attachedImage} /> : null}
+            {message.text ? (
+              isUser ? (
+                <Text style={[styles.bubbleTextUser, { color: t.userBubbleText }]}>{message.text}</Text>
+              ) : (
+                <ChattyMarkdown text={message.text} color={t.botBubbleText} fontSize={13} style={styles.bubbleTextAssistant} />
+              )
+            ) : null}
+          </View>
         </View>
       </View>
     </View>
@@ -452,49 +503,8 @@ function TypingIndicator({
   );
 }
 
-function SimpleMarkdown({ text, style }: { text: string; style?: any }) {
-  const lines = text.split('\n');
-  return (
-    <View>
-      {lines.map((line, i) => {
-        let isList = false;
-        if (line.startsWith('- ')) {
-          isList = true;
-          line = '  • ' + line.slice(2);
-        }
-        let isHeading = false;
-        if (line.startsWith('### ')) {
-          isHeading = true;
-          line = line.slice(4);
-        }
-
-        const parts = line.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))/g);
-        const textStyle = isHeading ? { fontWeight: 'bold' as const, fontSize: 16 } : undefined;
-
-        return (
-          <Text key={i} style={[style, textStyle]}>
-            {parts.map((part, j) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return <Text key={j} style={{ fontWeight: 'bold' }}>{part.slice(2, -2)}</Text>;
-              }
-              if (part.startsWith('*') && part.endsWith('*')) {
-                return <Text key={j} style={{ fontStyle: 'italic' }}>{part.slice(1, -1)}</Text>;
-              }
-              if (part.startsWith('`') && part.endsWith('`')) {
-                return <Text key={j} style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', backgroundColor: '#f0f0f0' }}>{part.slice(1, -1)}</Text>;
-              }
-              const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
-              if (linkMatch) {
-                return <Text key={j} style={{ color: '#007AFF', textDecorationLine: 'underline' }} onPress={() => Linking.openURL(linkMatch[2])}>{linkMatch[1]}</Text>;
-              }
-              return <Text key={j}>{part}</Text>;
-            })}
-          </Text>
-        );
-      })}
-    </View>
-  );
-}
+/** Backward compatibility alias for ChattyMarkdown. */
+export const SimpleMarkdown = ChattyMarkdown;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
@@ -517,6 +527,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 15, fontWeight: "600" },
   headerStatusRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   headerStatus: { fontSize: 10 },
+  brandingFooter: { fontSize: 10, textAlign: "center", paddingTop: 6, paddingBottom: 2, fontVariant: ["small-caps"] },
+  senderTag: { fontSize: 9, fontWeight: "600", letterSpacing: 0.6, textTransform: "uppercase", paddingLeft: 2, paddingBottom: 2 },
   headerActions: { flexDirection: "row", gap: 2 },
   headerActionButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
   pulsingDot: { width: 6, height: 6, borderRadius: 3 },
