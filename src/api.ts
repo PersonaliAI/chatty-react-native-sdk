@@ -23,7 +23,6 @@ export interface ChattyTheme {
   teaser_message?: string;
   avatar_icon?: string;
   avatar_url?: string;
-  voice_enabled?: boolean;
   /** Hides the "Powered by Chatty" footer when true. */
   hide_branding?: boolean;
   /** When true, assistant bubbles show a small "AI"/"HUMAN AGENT" label above
@@ -226,34 +225,6 @@ export class ChattyClient {
     return res.json();
   }
 
-  /**
-   * Mints a LiveKit room token + dispatches the voice agent for a call, same
-   * endpoint the web widget uses. Only meaningful when `getTheme().voice_enabled`
-   * is true. This SDK doesn't bundle the LiveKit client itself — see
-   * ChattyVoiceCallView, which needs `@livekit/react-native` + `livekit-client`
-   * as peer dependencies only apps actually using voice calls need to install.
-   */
-  async getVoiceToken(sessionId: string, visitorTimezone = "UTC"): Promise<ChattyVoiceToken> {
-    const res = await fetch(buildUrl(this.baseUrl, "/api/widget/voice/token", {}), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bot_id: this.botId, session_id: sessionId, visitor_timezone: visitorTimezone }),
-    });
-    if (res.status === 429) throw new ChattyRateLimitError();
-    if (res.status === 403) throw new ChattyDomainNotAllowedError();
-    if (!res.ok) {
-      const detail = await res.json().catch(() => ({}));
-      throw new Error(detail.detail || `getVoiceToken failed: ${res.status}`);
-    }
-    return res.json();
-  }
-}
-
-export interface ChattyVoiceToken {
-  token: string;
-  livekit_url: string;
-  room_name: string;
-  session_id: string;
 }
 
 // The backend can't cryptographically verify a native app's identity the way

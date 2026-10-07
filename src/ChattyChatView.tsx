@@ -56,10 +56,6 @@ export interface ChattyChatViewProps extends UseChattyChatOptions {
    * dependency itself — wire this up with expo-av (or your own recorder), then call
    * `ChattyClient.transcribe()` with the recorded file and fill the input with the result. */
   onMicPress?: () => void;
-  /** Called when the header's voice-call button is tapped (only shown when the bot's
-   * dashboard has voice enabled). This SDK doesn't bundle a voice-call implementation
-   * (that's a separate LiveKit integration) — wire this up if your app has one. */
-  onVoiceCallPress?: () => void;
   /** Called when the header's notification-bell button is tapped. This SDK never calls
    * PermissionsAndroid.request (or any permission prompt) itself — it only reflects
    * POST_NOTIFICATIONS' already-granted state (via PermissionsAndroid.check on Android 13+,
@@ -238,11 +234,6 @@ export function ChattyChatView(props: ChattyChatViewProps) {
           </View>
         </View>
         <View style={styles.headerActions}>
-          {theme?.voice_enabled ? (
-            <TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
-              <Text style={{ fontSize: 16 }}>📞</Text>
-            </TouchableOpacity>
-          ) : null}
           {props.enableNotificationBell !== false && notifGranted ? (
             <TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
               <Text style={{ fontSize: 16 }}>🔔</Text>

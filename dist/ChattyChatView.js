@@ -146,9 +146,6 @@ export function ChattyChatView(props) {
           </View>
         </View>
         <View style={styles.headerActions}>
-          {theme?.voice_enabled ? (<TouchableOpacity style={styles.headerActionButton} onPress={() => props.onVoiceCallPress?.()}>
-              <Text style={{ fontSize: 16 }}>📞</Text>
-            </TouchableOpacity>) : null}
           {props.enableNotificationBell !== false && notifGranted ? (<TouchableOpacity style={styles.headerActionButton} onPress={handleBellPress}>
               <Text style={{ fontSize: 16 }}>🔔</Text>
             </TouchableOpacity>) : null}

@@ -7,7 +7,6 @@ export type {
   ChattyPollMessage,
   ChattyPollResponse,
   ChattyClientOptions,
-  ChattyVoiceToken,
 } from "./api";
 export { useChattyChat } from "./useChattyChat";
 export type { ChattyMessage, ChattyRole, UseChattyChatOptions, UseChattyChatResult } from "./useChattyChat";
@@ -20,11 +19,6 @@ export type { ChattyLauncherProps } from "./ChattyLauncher";
 // native-components alternative (more native feel, manually kept in parity).
 export { ChattyEmbedView, chattyDefaultEmbedBaseUrl } from "./ChattyEmbedView";
 export type { ChattyEmbedViewProps } from "./ChattyEmbedView";
-// Voice calls (LiveKit) — only importable once the app has installed the
-// optional peer dependencies (@livekit/react-native, livekit-client,
-// @livekit/react-native-webrtc); see ChattyVoiceCallView.tsx's own comment.
-export { ChattyVoiceCallView } from "./ChattyVoiceCallView";
-export type { ChattyVoiceCallViewProps } from "./ChattyVoiceCallView";
 export { getOrCreateSessionId, newSession } from "./session";
 export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLogoBgColor, chattyLauncherRadii, chattyBubbleRadii } from "./designTokens";
 export type { ChattyDesignTokens } from "./designTokens";

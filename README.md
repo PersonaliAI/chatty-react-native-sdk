@@ -37,8 +37,7 @@ npm install @personaliai/react-native @react-native-async-storage/async-storage
 ```
 
 `react` and `react-native` are peer dependencies — install versions matching your app (`react`
-18+, `react-native` 0.72+). Voice calls (`ChattyVoiceCallView`) are the one feature that needs
-native linking — see [Voice-call button](#chattychatview) — everything else needs nothing beyond
+18+, `react-native` 0.72+). Everything else needs nothing beyond
 `@react-native-async-storage/async-storage`.
 
 ## Quick start
@@ -149,7 +148,6 @@ this release; color, radius, and header/bubble treatment carry most of a design'
   position={"left" | "right"}  // optional, defaults to "right"
   onReady={() => void}
   onMessage={(message) => void}
-  onVoiceCallPress={() => void}
   onNotificationBellPress={() => void}
   enableNotificationBell={boolean}  // optional, defaults to true — see Permissions
 />
@@ -172,8 +170,6 @@ The button color follows the active design's accent automatically — same as we
   onShareLocationPress={() => void}   // optional, "Location" tapped in the attach menu
   onAttachPress={() => void}          // optional fallback if the four above aren't given
   onMicPress={() => void}             // optional — mic button only renders when this is set
-  onVoiceCallPress={() => void}       // optional, header voice-call button (only shown when
-                                       // the bot's dashboard has voice enabled)
   onNotificationBellPress={() => void}  // optional, header notification-bell button — see Notes
   onClose={() => void}                // optional, renders a header close (✕) button.
                                        // ChattyLauncher passes this for you.
@@ -310,47 +306,6 @@ push when a reply arrives while the app is backgrounded needs FCM/APNs wired up 
 (register the device token, send it to your backend, store it against the session/user, call
 FCM/APNs when a message lands for a session that isn't actively polling) — none of that exists
 yet, it's backend work in `chatty-backend`.
-
-</details>
-
-<details>
-<summary><strong>Voice-call button</strong></summary>
-
-<br>
-
-Only shown when the bot's dashboard has voice enabled, and fires `onVoiceCallPress`. This SDK now
-ships a ready-to-render call screen, `ChattyVoiceCallView` — render it yourself from that callback
-(it's opt-in, not wired in automatically, so apps that never use voice don't pay for the
-dependency):
-
-```tsx
-import { ChattyChatView, ChattyVoiceCallView, ChattyClient } from "@personaliai/react-native";
-import { registerGlobals } from "@livekit/react-native"; // once, at app startup (e.g. index.js)
-
-registerGlobals();
-
-function MyChat() {
-  const [showCall, setShowCall] = useState(false);
-  const client = useMemo(() => new ChattyClient({ botId: "YOUR_BOT_ID" }), []);
-
-  if (showCall) {
-    return (
-      <ChattyVoiceCallView
-        client={client}
-        sessionId={sessionId} // the same session id ChattyChatView/useChattyChat is using
-        widgetStyle={theme?.widget_style}
-        onClose={() => setShowCall(false)}
-      />
-    );
-  }
-  return <ChattyChatView botId="YOUR_BOT_ID" onVoiceCallPress={() => setShowCall(true)} />;
-}
-```
-
-Needs three additional peer dependencies only if you use this (`npm i @livekit/react-native
-livekit-client @livekit/react-native-webrtc` + the usual iOS `pod install` / Android autolinking) —
-apps that don't render `ChattyVoiceCallView` don't need them. See LiveKit's own React Native setup
-docs for platform permissions (`NSMicrophoneUsageDescription` on iOS, `RECORD_AUDIO` on Android).
 
 </details>
 
