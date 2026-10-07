@@ -18,6 +18,16 @@ avatar, and composer with real `View`/`Text`/`FlatList` components — no `WebVi
 
 </div>
 
+## LiveKit voice
+
+Call `new ChattyClient({ botId }).createVoiceToken(sessionId)` and connect the
+returned `serverUrl`/`participantToken` with the official LiveKit React Native
+client. `ChattyEmbedView` already includes the complete widget voice UI and
+real-time transcript for hosts that prefer zero native LiveKit setup.
+
+For a standalone screen, use `ChattyVoiceView botId={"…"}`; it loads the same
+official LiveKit UI in voice-only mode.
+
 ---
 
 ## Why this SDK

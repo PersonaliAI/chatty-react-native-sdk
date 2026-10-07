@@ -105,6 +105,8 @@ export const BRIDGE_SHIM_JS = `
 
 export interface ChattyEmbedViewProps {
   botId: string;
+  /** Opens the standalone LiveKit voice surface instead of the normal chat surface. */
+  voiceOnly?: boolean;
   /** Overrides the embed page's own host (defaults to the production site). */
   baseUrl?: string;
   /** Called once the embed page has finished loading and is interactive (chatty:ready). */
@@ -151,6 +153,7 @@ function OfflineView({ onRetry, bg, fg }: { onRetry: () => void; bg: string; fg:
 export function ChattyEmbedView(props: ChattyEmbedViewProps) {
   const {
     botId,
+    voiceOnly = false,
     baseUrl = chattyDefaultEmbedBaseUrl,
     onReady,
     onMessage,
@@ -159,7 +162,10 @@ export function ChattyEmbedView(props: ChattyEmbedViewProps) {
     onMicPermissionNeeded,
     onLocationPermissionNeeded,
   } = props;
-  const embedUrl = useMemo(() => `${baseUrl.replace(/\/$/, "")}/embed/${botId}`, [baseUrl, botId]);
+  const embedUrl = useMemo(() => {
+    const url = `${baseUrl.replace(/\/$/, "")}/embed/${botId}`;
+    return voiceOnly ? `${url}?voice=only` : url;
+  }, [baseUrl, botId, voiceOnly]);
   const embedOrigin = useMemo(() => new URL(embedUrl).origin, [embedUrl]);
 
   const webviewRef = useRef<WebView>(null);

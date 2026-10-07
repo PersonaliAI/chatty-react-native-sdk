@@ -29,6 +29,14 @@ export interface ChattyTheme {
    * the text (poll-sourced messages are always human — see useChattyChat). */
   show_sender_tag?: boolean;
   color_scheme?: ChattyColorScheme;
+  voice_enabled?: boolean;
+}
+
+export interface ChattyVoiceToken {
+  serverUrl: string;
+  participantToken: string;
+  roomName: string;
+  participantName: string;
 }
 
 export interface ChattyChatResponse {
@@ -211,6 +219,23 @@ export class ChattyClient {
     if (!res.ok) throw new Error(`transcribe failed: ${res.status}`);
     const data = await res.json();
     return data.text ?? "";
+  }
+
+  /**
+   * Create a short-lived LiveKit participant token. API keys and provider
+   * credentials never leave Chatty's backend. Connect the returned values with
+   * the official `@livekit/react-native` client in the host application.
+   */
+  async createVoiceToken(sessionId: string, participantName = "Visitor"): Promise<ChattyVoiceToken> {
+    const res = await fetch(buildUrl(this.baseUrl, "/api/widget/voice/token", {}), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bot_id: this.botId, session_id: sessionId, participant_name: participantName }),
+    });
+    if (res.status === 429) throw new ChattyRateLimitError();
+    if (res.status === 403) throw new ChattyDomainNotAllowedError();
+    if (!res.ok) throw new Error(`createVoiceToken failed: ${res.status}`);
+    return res.json();
   }
 
   /** Poll for new messages (e.g. from a human agent) since the given ISO timestamp. */
