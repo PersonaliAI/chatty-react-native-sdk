@@ -226,11 +226,20 @@ export class ChattyClient {
    * credentials never leave Chatty's backend. Connect the returned values with
    * the official `@livekit/react-native` client in the host application.
    */
-  async createVoiceToken(sessionId: string, participantName = "Visitor"): Promise<ChattyVoiceToken> {
+  async createVoiceToken(
+    sessionId: string,
+    participantName = "Visitor",
+    visitorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  ): Promise<ChattyVoiceToken> {
     const res = await fetch(buildUrl(this.baseUrl, "/api/widget/voice/token", {}), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bot_id: this.botId, session_id: sessionId, participant_name: participantName }),
+      body: JSON.stringify({
+        bot_id: this.botId,
+        session_id: sessionId,
+        participant_name: participantName,
+        visitor_timezone: visitorTimezone,
+      }),
     });
     if (res.status === 429) throw new ChattyRateLimitError();
     if (res.status === 403) throw new ChattyDomainNotAllowedError();
