@@ -79,6 +79,13 @@ jobs:
         working-directory: example
         run: npx expo prebuild --platform android --no-install
 
+      - name: Configure Android SDK versions
+        working-directory: example/android
+        run: |
+          echo "android.minSdkVersion=24" >> gradle.properties
+          sed -i 's/minSdkVersion = 23/minSdkVersion = 24/g' build.gradle 2>/dev/null || true
+          sed -i 's/minSdkVersion 23/minSdkVersion 24/g' app/build.gradle 2>/dev/null || true
+
       # Release (not debug) — a debug build doesn't embed the JS bundle, it
       # expects a live Metro server, which produced "Could not connect to
       # development server" for anyone who just installed the APK standalone.
@@ -90,7 +97,7 @@ jobs:
         working-directory: example/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease -Pandroid.minSdkVersion=24
 
       - name: Rename APK
         run: cp example/android/app/build/outputs/apk/release/app-release.apk chatty-react-native-example.apk
