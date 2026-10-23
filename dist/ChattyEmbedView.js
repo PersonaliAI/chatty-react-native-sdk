@@ -92,8 +92,7 @@ export function ChattyEmbedView(props) {
         params.set("safeArea", "true");
         if (voiceOnly)
             params.set("voice", "only");
-        if (typeof topInset === "number")
-            params.set("topInset", String(Math.round(topInset)));
+        params.set("topInset", String(typeof topInset === "number" ? Math.round(topInset) : 0));
         if (typeof bottomInset === "number")
             params.set("bottomInset", String(Math.round(bottomInset)));
         return `${base}?${params.toString()}`;

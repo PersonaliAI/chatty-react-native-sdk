@@ -174,7 +174,7 @@ export function ChattyEmbedView(props: ChattyEmbedViewProps) {
     params.set("platform", "react-native");
     params.set("safeArea", "true");
     if (voiceOnly) params.set("voice", "only");
-    if (typeof topInset === "number") params.set("topInset", String(Math.round(topInset)));
+    params.set("topInset", String(typeof topInset === "number" ? Math.round(topInset) : 0));
     if (typeof bottomInset === "number") params.set("bottomInset", String(Math.round(bottomInset)));
     return `${base}?${params.toString()}`;
   }, [baseUrl, botId, voiceOnly, topInset, bottomInset]);

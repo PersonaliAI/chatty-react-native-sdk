@@ -1,6 +1,6 @@
 {
   "name": "@personaliai/react-native",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Official React Native SDK for Chatty AI chatbots — loads the web widget in a WebView for guaranteed parity, with native components as an alternative",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
