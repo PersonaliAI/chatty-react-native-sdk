@@ -129,6 +129,10 @@ export interface ChattyEmbedViewProps {
   /** Called when the visitor taps the attach menu's "Location" option and location permission
    * is not yet granted. Follows the same "reflect, never request" contract. */
   onLocationPermissionNeeded?: () => void;
+  /** Optional override for the safe area top inset in points (e.g. status bar / notch height). */
+  topInset?: number;
+  /** Optional override for the safe area bottom inset in points (e.g. home indicator bar height). */
+  bottomInset?: number;
 }
 
 function OfflineView({ onRetry, bg, fg }: { onRetry: () => void; bg: string; fg: string }) {
@@ -161,11 +165,19 @@ export function ChattyEmbedView(props: ChattyEmbedViewProps) {
     onRequestNotificationPermission,
     onMicPermissionNeeded,
     onLocationPermissionNeeded,
+    topInset,
+    bottomInset,
   } = props;
   const embedUrl = useMemo(() => {
-    const url = `${baseUrl.replace(/\/$/, "")}/embed/${botId}`;
-    return voiceOnly ? `${url}?voice=only` : url;
-  }, [baseUrl, botId, voiceOnly]);
+    const base = `${baseUrl.replace(/\/$/, "")}/embed/${botId}`;
+    const params = new URLSearchParams();
+    params.set("platform", "react-native");
+    params.set("safeArea", "true");
+    if (voiceOnly) params.set("voice", "only");
+    if (typeof topInset === "number") params.set("topInset", String(Math.round(topInset)));
+    if (typeof bottomInset === "number") params.set("bottomInset", String(Math.round(bottomInset)));
+    return `${base}?${params.toString()}`;
+  }, [baseUrl, botId, voiceOnly, topInset, bottomInset]);
   const embedOrigin = useMemo(() => new URL(embedUrl).origin, [embedUrl]);
 
   const webviewRef = useRef<WebView>(null);
@@ -221,6 +233,16 @@ export function ChattyEmbedView(props: ChattyEmbedViewProps) {
   useEffect(() => {
     if (pageReady) deliver({ type: "chatty-notification-status", granted: notifGranted });
   }, [pageReady, notifGranted, deliver]);
+
+  useEffect(() => {
+    if (pageReady && (typeof topInset === "number" || typeof bottomInset === "number")) {
+      deliver({
+        type: "chatty-safe-area",
+        top: topInset ?? 0,
+        bottom: bottomInset ?? 0,
+      });
+    }
+  }, [pageReady, topInset, bottomInset, deliver]);
 
   const handleWebViewMessage = useCallback(
     (event: WebViewMessageEvent) => {

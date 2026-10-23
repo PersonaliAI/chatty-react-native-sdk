@@ -45,6 +45,13 @@ export interface ChattyTheme {
      * the text (poll-sourced messages are always human — see useChattyChat). */
     show_sender_tag?: boolean;
     color_scheme?: ChattyColorScheme;
+    voice_enabled?: boolean;
+}
+export interface ChattyVoiceToken {
+    serverUrl: string;
+    participantToken: string;
+    roomName: string;
+    participantName: string;
 }
 export interface ChattyChatResponse {
     reply: string;
@@ -106,6 +113,12 @@ export declare class ChattyClient {
         name: string;
         type: string;
     }): Promise<string>;
+    /**
+     * Create a short-lived LiveKit participant token. API keys and provider
+     * credentials never leave Chatty's backend. Connect the returned values with
+     * the official `@livekit/react-native` client in the host application.
+     */
+    createVoiceToken(sessionId: string, participantName?: string, visitorTimezone?: string): Promise<ChattyVoiceToken>;
     /** Poll for new messages (e.g. from a human agent) since the given ISO timestamp. */
     poll(sessionId: string, after: string): Promise<ChattyPollResponse>;
 }

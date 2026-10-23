@@ -84,8 +84,20 @@ function OfflineView({ onRetry, bg, fg }) {
  * for zero parity drift; see ChattyChatView for the native-components version.
  */
 export function ChattyEmbedView(props) {
-    const { botId, baseUrl = chattyDefaultEmbedBaseUrl, onReady, onMessage, onClose, onRequestNotificationPermission, onMicPermissionNeeded, onLocationPermissionNeeded, } = props;
-    const embedUrl = useMemo(() => `${baseUrl.replace(/\/$/, "")}/embed/${botId}`, [baseUrl, botId]);
+    const { botId, voiceOnly = false, baseUrl = chattyDefaultEmbedBaseUrl, onReady, onMessage, onClose, onRequestNotificationPermission, onMicPermissionNeeded, onLocationPermissionNeeded, topInset, bottomInset, } = props;
+    const embedUrl = useMemo(() => {
+        const base = `${baseUrl.replace(/\/$/, "")}/embed/${botId}`;
+        const params = new URLSearchParams();
+        params.set("platform", "react-native");
+        params.set("safeArea", "true");
+        if (voiceOnly)
+            params.set("voice", "only");
+        if (typeof topInset === "number")
+            params.set("topInset", String(Math.round(topInset)));
+        if (typeof bottomInset === "number")
+            params.set("bottomInset", String(Math.round(bottomInset)));
+        return `${base}?${params.toString()}`;
+    }, [baseUrl, botId, voiceOnly, topInset, bottomInset]);
     const embedOrigin = useMemo(() => new URL(embedUrl).origin, [embedUrl]);
     const webviewRef = useRef(null);
     const [pageReady, setPageReady] = useState(false);
@@ -137,6 +149,15 @@ export function ChattyEmbedView(props) {
         if (pageReady)
             deliver({ type: "chatty-notification-status", granted: notifGranted });
     }, [pageReady, notifGranted, deliver]);
+    useEffect(() => {
+        if (pageReady && (typeof topInset === "number" || typeof bottomInset === "number")) {
+            deliver({
+                type: "chatty-safe-area",
+                top: topInset ?? 0,
+                bottom: bottomInset ?? 0,
+            });
+        }
+    }, [pageReady, topInset, bottomInset, deliver]);
     const handleWebViewMessage = useCallback((event) => {
         let msg = null;
         try {

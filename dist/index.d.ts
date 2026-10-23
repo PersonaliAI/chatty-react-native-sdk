@@ -1,5 +1,5 @@
 export { ChattyClient, DEFAULT_BASE_URL, ChattyRateLimitError, ChattyDomainNotAllowedError } from "./api";
-export type { ChattyTheme, ChattyColorScheme, ChattyChatResponse, ChattyMediaResponse, ChattyPollMessage, ChattyPollResponse, ChattyClientOptions, } from "./api";
+export type { ChattyTheme, ChattyColorScheme, ChattyChatResponse, ChattyMediaResponse, ChattyPollMessage, ChattyPollResponse, ChattyClientOptions, ChattyVoiceToken, } from "./api";
 export { useChattyChat } from "./useChattyChat";
 export type { ChattyMessage, ChattyRole, UseChattyChatOptions, UseChattyChatResult } from "./useChattyChat";
 export { ChattyChatView } from "./ChattyChatView";
@@ -8,6 +8,7 @@ export { ChattyLauncher } from "./ChattyLauncher";
 export type { ChattyLauncherProps } from "./ChattyLauncher";
 export { ChattyEmbedView, chattyDefaultEmbedBaseUrl } from "./ChattyEmbedView";
 export type { ChattyEmbedViewProps } from "./ChattyEmbedView";
+export { ChattyVoiceView } from "./ChattyVoiceView";
 export { getOrCreateSessionId, newSession } from "./session";
 export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLogoBgColor, chattyLauncherRadii, chattyBubbleRadii } from "./designTokens";
 export type { ChattyDesignTokens } from "./designTokens";

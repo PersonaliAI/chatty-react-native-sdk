@@ -6,6 +6,7 @@ export { ChattyLauncher } from "./ChattyLauncher";
 // guaranteeing exact parity with it. See ChattyChatView above for the
 // native-components alternative (more native feel, manually kept in parity).
 export { ChattyEmbedView, chattyDefaultEmbedBaseUrl } from "./ChattyEmbedView";
+export { ChattyVoiceView } from "./ChattyVoiceView";
 export { getOrCreateSessionId, newSession } from "./session";
 export { CHATTY_DESIGN_TOKENS, chattyNormalizeWidgetStyle, chattyLogoBgColor, chattyLauncherRadii, chattyBubbleRadii } from "./designTokens";
 export { ChattyMarkdown, extractMath, formatLatexForDisplay, parseInlineTokens } from "./ChattyMarkdown";
